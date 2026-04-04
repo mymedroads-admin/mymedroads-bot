@@ -1,0 +1,17 @@
+# Application config with secrets
+src/main/resources/application.yml
+
+# Maven
+target/
+*.class
+
+# IDE
+.idea/
+*.iml
+.eclipse/
+.settings/
+.project
+.classpath
+
+# OS
+.DS_Store
