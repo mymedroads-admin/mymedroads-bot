@@ -13,20 +13,41 @@
 
     <groupId>com.mymedroads</groupId>
     <artifactId>mymedroads-bot</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>0.0.1</version>
+    <packaging>war</packaging>
     <name>mymedroads-bot</name>
-    <description>Conversational bot powered by Claude Sonnet for MyMedRoads</description>
+    <description>myMedRoads Conversational Bot</description>
 
     <properties>
-        <java.version>17</java.version>
+        <java.version>21</java.version>
+        <lombok.version>1.18.36</lombok.version>
         <anthropic.version>2.17.0</anthropic.version>
     </properties>
 
     <dependencies>
-        <!-- Spring Boot Web -->
+        <!-- Spring Boot Web (Logback excluded in favour of Log4j2) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-starter-logging</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <!-- Log4j2 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-log4j2</artifactId>
+        </dependency>
+
+        <!-- Exclude embedded Tomcat for external Tomcat 10 deployment -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-tomcat</artifactId>
+            <scope>provided</scope>
         </dependency>
 
         <!-- Spring Boot Validation -->
@@ -35,11 +56,25 @@
             <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
 
-        <!-- Anthropic Java SDK -->
+        <!-- Anthropic Java SDK (OkHttp client; exclude unused Apache HttpClient5) -->
         <dependency>
             <groupId>com.anthropic</groupId>
             <artifactId>anthropic-java</artifactId>
             <version>${anthropic.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.apache.httpcomponents.client5</groupId>
+                    <artifactId>httpclient5</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.httpcomponents.core5</groupId>
+                    <artifactId>httpcore5</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.httpcomponents.core5</groupId>
+                    <artifactId>httpcore5-h2</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <!-- Lombok -->
@@ -58,17 +93,43 @@
     </dependencies>
 
     <build>
+        <!-- WAR filename = context path in Tomcat (e.g. mymedroads-bot.war → /mymedroads-bot) -->
+        <finalName>mymedroads-bot</finalName>
         <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-war-plugin</artifactId>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+                        </manifest>
+                        <manifestEntries>
+                            <Implementation-Title>${project.name}</Implementation-Title>
+                            <Implementation-Version>${project.version}</Implementation-Version>
+                        </manifestEntries>
+                    </archive>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
-                    <excludes>
-                        <exclude>
-                            <groupId>org.projectlombok</groupId>
-                            <artifactId>lombok</artifactId>
-                        </exclude>
-                    </excludes>
+                    <!-- Skip repackage: deploy to Tomcat 10 only, no need for executable WAR -->
+                    <skip>true</skip>
                 </configuration>
             </plugin>
         </plugins>

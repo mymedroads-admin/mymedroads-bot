@@ -3,7 +3,6 @@ package com.mymedroads.bot.service;
 import com.anthropic.client.AnthropicClient;
 import com.anthropic.models.messages.Message;
 import com.anthropic.models.messages.MessageCreateParams;
-import com.anthropic.models.messages.MessageParam;
 import com.anthropic.models.messages.TextBlockParam;
 import com.mymedroads.bot.model.ChatMessage;
 import com.mymedroads.bot.model.ChatRequest;

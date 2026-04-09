@@ -1,0 +1,36 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Clean, Build, and Package WAR",
+            "type": "shell",
+            "command": "mvn",
+            "args": ["clean", "compile", "package", "-DskipTests"],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": "$maven"
+        },
+        {
+            "label": "Deploy to Remote Tomcat",
+            "type": "shell",
+            "command": "mvn",
+            "args": ["tomcat7:deploy"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": "$maven"
+        }
+    ]
+}
