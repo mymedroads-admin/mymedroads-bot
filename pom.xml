@@ -22,7 +22,20 @@
         <java.version>21</java.version>
         <lombok.version>1.18.36</lombok.version>
         <anthropic.version>2.17.0</anthropic.version>
+        <spring-ai.version>1.0.0</spring-ai.version>
     </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.springframework.ai</groupId>
+                <artifactId>spring-ai-bom</artifactId>
+                <version>${spring-ai.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <dependencies>
         <!-- Spring Boot Web (Logback excluded in favour of Log4j2) -->
@@ -50,18 +63,17 @@
             <scope>provided</scope>
         </dependency>
 
-        <!-- Spring Boot Validation -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-validation</artifactId>
-        </dependency>
-
-        <!-- Anthropic Java SDK (OkHttp client; exclude unused Apache HttpClient5) -->
+        <!-- Anthropic Java SDK (OkHttp client; exclude Kotlin reflection and unused HTTP clients) -->
         <dependency>
             <groupId>com.anthropic</groupId>
             <artifactId>anthropic-java</artifactId>
             <version>${anthropic.version}</version>
             <exclusions>
+                <!-- Kotlin reflection not needed for basic Kotlin stdlib usage: -3.2 MB -->
+                <exclusion>
+                    <groupId>org.jetbrains.kotlin</groupId>
+                    <artifactId>kotlin-reflect</artifactId>
+                </exclusion>
                 <exclusion>
                     <groupId>org.apache.httpcomponents.client5</groupId>
                     <artifactId>httpclient5</artifactId>
@@ -77,6 +89,38 @@
             </exclusions>
         </dependency>
 
+        <!-- kotlin-reflect: required by Spring AI Ollama (excluded from anthropic-java above) -->
+        <dependency>
+            <groupId>org.jetbrains.kotlin</groupId>
+            <artifactId>kotlin-reflect</artifactId>
+        </dependency>
+
+        <!-- Spring AI Ollama (embeddings) -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-model-ollama</artifactId>
+        </dependency>
+
+        <!-- Spring AI PGVector store -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-vector-store-pgvector</artifactId>
+        </dependency>
+
+        <!-- Spring AI Jsoup document reader (website crawling) -->
+        <!-- NOTE: spring-ai-pdf-document-reader removed (-3.7 MB pdfbox+fontbox).
+             Convert PDFs to .txt before placing in knowledge/ folder. -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-jsoup-document-reader</artifactId>
+        </dependency>
+
+        <!-- PostgreSQL JDBC driver -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+        </dependency>
+
         <!-- Lombok -->
         <dependency>
             <groupId>org.projectlombok</groupId>
@@ -89,6 +133,47 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
+        </dependency>
+
+        <!--
+          ===== SCOPE OVERRIDES: jars excluded from WAR =====
+          Declaring as 'provided' overrides transitive 'compile' scope,
+          preventing these from being packaged into WEB-INF/lib.
+        -->
+
+        <!-- jtokkit (tiktoken tokenizer): 3.2 MB — used by TokenTextSplitter which
+             we replaced with a character-based splitter -->
+        <dependency>
+            <groupId>com.knuddels</groupId>
+            <artifactId>jtokkit</artifactId>
+            <version>1.1.0</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Annotation-only jars: not needed at runtime -->
+        <dependency>
+            <groupId>com.google.errorprone</groupId>
+            <artifactId>error_prone_annotations</artifactId>
+            <version>2.33.0</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.checkerframework</groupId>
+            <artifactId>checker-qual</artifactId>
+            <version>3.42.0</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.swagger.core.v3</groupId>
+            <artifactId>swagger-annotations</artifactId>
+            <version>2.2.31</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.jetbrains</groupId>
+            <artifactId>annotations</artifactId>
+            <version>13.0</version>
+            <scope>provided</scope>
         </dependency>
     </dependencies>
 

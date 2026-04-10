@@ -21,6 +21,7 @@ public class ClaudeService {
 
     private final AnthropicClient anthropicClient;
     private final ConversationSessionStore sessionStore;
+    private final RagService ragService;
 
     @Value("${anthropic.model}")
     private String model;
@@ -48,11 +49,18 @@ public class ClaudeService {
 
         // Build message params from conversation history
         List<ChatMessage> history = sessionStore.getHistory(sessionId);
+
+        // Augment system prompt with RAG context relevant to this query
+        String ragContext = ragService.retrieveContext(request.getMessage());
+        String effectiveSystemPrompt = ragContext.isEmpty()
+                ? systemPrompt
+                : systemPrompt + "\n\n" + ragContext;
+
         MessageCreateParams.Builder paramsBuilder = MessageCreateParams.builder()
                 .model(model)
                 .maxTokens(maxTokens)
                 .systemOfTextBlockParams(List.of(
-                        TextBlockParam.builder().text(systemPrompt).build()
+                        TextBlockParam.builder().text(effectiveSystemPrompt).build()
                 ));
 
         for (ChatMessage msg : history) {
