@@ -1,0 +1,111 @@
+2026-04-10 10:27:06.087 [main] INFO  com.mymedroads.bot.MymedroadsBotApplication - Starting MymedroadsBotApplication using Java 21.0.5 with PID 6542 (/Users/rakeshranjan/eclipse-workspace/mymedroads-bot/target/classes started by rakeshranjan in /Users/rakeshranjan/eclipse-workspace/mymedroads-bot)
+2026-04-10 10:27:06.091 [main] DEBUG com.mymedroads.bot.MymedroadsBotApplication - Running with Spring Boot v3.3.0, Spring v6.1.8
+2026-04-10 10:27:06.093 [main] INFO  com.mymedroads.bot.MymedroadsBotApplication - No active profile set, falling back to 1 default profile: "default"
+2026-04-10 10:27:06.638 [main] INFO  org.springframework.boot.web.embedded.tomcat.TomcatWebServer - Tomcat initialized with port 443 (http)
+2026-04-10 10:27:06.673 [main] INFO  org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 555 ms
+2026-04-10 10:27:06.703 [main] WARN  org.springframework.boot.web.servlet.context.AnnotationConfigServletWebServerApplicationContext - Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'anthropicConfig': Injection of autowired dependencies failed
+2026-04-10 10:27:06.713 [main] INFO  org.springframework.boot.autoconfigure.logging.ConditionEvaluationReportLogger - 
+
+Error starting ApplicationContext. To display the condition evaluation report re-run your application with 'debug' enabled.
+2026-04-10 10:27:06.724 [main] ERROR org.springframework.boot.SpringApplication - Application run failed
+org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'anthropicConfig': Injection of autowired dependencies failed
+	at org.springframework.beans.factory.annotation.AutowiredAnnotationBeanPostProcessor.postProcessProperties(AutowiredAnnotationBeanPostProcessor.java:514) ~[spring-beans-6.1.8.jar:6.1.8]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.populateBean(AbstractAutowireCapableBeanFactory.java:1421) ~[spring-beans-6.1.8.jar:6.1.8]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:599) ~[spring-beans-6.1.8.jar:6.1.8]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:522) ~[spring-beans-6.1.8.jar:6.1.8]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:337) ~[spring-beans-6.1.8.jar:6.1.8]
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:234) ~[spring-beans-6.1.8.jar:6.1.8]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:335) ~[spring-beans-6.1.8.jar:6.1.8]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:200) ~[spring-beans-6.1.8.jar:6.1.8]
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.preInstantiateSingletons(DefaultListableBeanFactory.java:975) ~[spring-beans-6.1.8.jar:6.1.8]
+	at org.springframework.context.support.AbstractApplicationContext.finishBeanFactoryInitialization(AbstractApplicationContext.java:962) ~[spring-context-6.1.8.jar:6.1.8]
+	at org.springframework.context.support.AbstractApplicationContext.refresh(AbstractApplicationContext.java:624) ~[spring-context-6.1.8.jar:6.1.8]
+	at org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext.refresh(ServletWebServerApplicationContext.java:146) ~[spring-boot-3.3.0.jar:3.3.0]
+	at org.springframework.boot.SpringApplication.refresh(SpringApplication.java:754) [spring-boot-3.3.0.jar:3.3.0]
+	at org.springframework.boot.SpringApplication.refreshContext(SpringApplication.java:456) [spring-boot-3.3.0.jar:3.3.0]
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:335) [spring-boot-3.3.0.jar:3.3.0]
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1363) [spring-boot-3.3.0.jar:3.3.0]
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1352) [spring-boot-3.3.0.jar:3.3.0]
+	at com.mymedroads.bot.MymedroadsBotApplication.main(MymedroadsBotApplication.java:12) [classes/:?]
+Caused by: java.lang.IllegalArgumentException: Could not resolve placeholder 'ANTHROPIC_API_KEY' in value "${ANTHROPIC_API_KEY}"
+	at org.springframework.util.PropertyPlaceholderHelper.parseStringValue(PropertyPlaceholderHelper.java:180) ~[spring-core-6.1.8.jar:6.1.8]
+	at org.springframework.util.PropertyPlaceholderHelper.replacePlaceholders(PropertyPlaceholderHelper.java:126) ~[spring-core-6.1.8.jar:6.1.8]
+	at org.springframework.core.env.AbstractPropertyResolver.doResolvePlaceholders(AbstractPropertyResolver.java:239) ~[spring-core-6.1.8.jar:6.1.8]
+	at org.springframework.core.env.AbstractPropertyResolver.resolveRequiredPlaceholders(AbstractPropertyResolver.java:210) ~[spring-core-6.1.8.jar:6.1.8]
+	at org.springframework.core.env.AbstractPropertyResolver.resolveNestedPlaceholders(AbstractPropertyResolver.java:230) ~[spring-core-6.1.8.jar:6.1.8]
+	at org.springframework.boot.context.properties.source.ConfigurationPropertySourcesPropertyResolver.getProperty(ConfigurationPropertySourcesPropertyResolver.java:80) ~[spring-boot-3.3.0.jar:3.3.0]
+	at org.springframework.boot.context.properties.source.ConfigurationPropertySourcesPropertyResolver.getProperty(ConfigurationPropertySourcesPropertyResolver.java:61) ~[spring-boot-3.3.0.jar:3.3.0]
+	at org.springframework.core.env.AbstractEnvironment.getProperty(AbstractEnvironment.java:552) ~[spring-core-6.1.8.jar:6.1.8]
+	at org.springframework.context.support.PropertySourcesPlaceholderConfigurer$1.getProperty(PropertySourcesPlaceholderConfigurer.java:153) ~[spring-context-6.1.8.jar:6.1.8]
+	at org.springframework.context.support.PropertySourcesPlaceholderConfigurer$1.getProperty(PropertySourcesPlaceholderConfigurer.java:149) ~[spring-context-6.1.8.jar:6.1.8]
+	at org.springframework.core.env.PropertySourcesPropertyResolver.getProperty(PropertySourcesPropertyResolver.java:85) ~[spring-core-6.1.8.jar:6.1.8]
+	at org.springframework.core.env.PropertySourcesPropertyResolver.getPropertyAsRawString(PropertySourcesPropertyResolver.java:74) ~[spring-core-6.1.8.jar:6.1.8]
+	at org.springframework.util.PropertyPlaceholderHelper.parseStringValue(PropertyPlaceholderHelper.java:153) ~[spring-core-6.1.8.jar:6.1.8]
+	at org.springframework.util.PropertyPlaceholderHelper.replacePlaceholders(PropertyPlaceholderHelper.java:126) ~[spring-core-6.1.8.jar:6.1.8]
+	at org.springframework.core.env.AbstractPropertyResolver.doResolvePlaceholders(AbstractPropertyResolver.java:239) ~[spring-core-6.1.8.jar:6.1.8]
+	at org.springframework.core.env.AbstractPropertyResolver.resolveRequiredPlaceholders(AbstractPropertyResolver.java:210) ~[spring-core-6.1.8.jar:6.1.8]
+	at org.springframework.context.support.PropertySourcesPlaceholderConfigurer.lambda$processProperties$0(PropertySourcesPlaceholderConfigurer.java:200) ~[spring-context-6.1.8.jar:6.1.8]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.resolveEmbeddedValue(AbstractBeanFactory.java:964) ~[spring-beans-6.1.8.jar:6.1.8]
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.doResolveDependency(DefaultListableBeanFactory.java:1374) ~[spring-beans-6.1.8.jar:6.1.8]
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.resolveDependency(DefaultListableBeanFactory.java:1353) ~[spring-beans-6.1.8.jar:6.1.8]
+	at org.springframework.beans.factory.annotation.AutowiredAnnotationBeanPostProcessor$AutowiredFieldElement.resolveFieldValue(AutowiredAnnotationBeanPostProcessor.java:784) ~[spring-beans-6.1.8.jar:6.1.8]
+	at org.springframework.beans.factory.annotation.AutowiredAnnotationBeanPostProcessor$AutowiredFieldElement.inject(AutowiredAnnotationBeanPostProcessor.java:767) ~[spring-beans-6.1.8.jar:6.1.8]
+	at org.springframework.beans.factory.annotation.InjectionMetadata.inject(InjectionMetadata.java:145) ~[spring-beans-6.1.8.jar:6.1.8]
+	at org.springframework.beans.factory.annotation.AutowiredAnnotationBeanPostProcessor.postProcessProperties(AutowiredAnnotationBeanPostProcessor.java:508) ~[spring-beans-6.1.8.jar:6.1.8]
+	... 17 more
+2026-04-10 10:42:57.887 [main] INFO  com.mymedroads.bot.MymedroadsBotApplication - Starting MymedroadsBotApplication using Java 21.0.5 with PID 7457 (/Users/rakeshranjan/eclipse-workspace/mymedroads-bot/target/classes started by rakeshranjan in /Users/rakeshranjan/eclipse-workspace/mymedroads-bot)
+2026-04-10 10:42:57.890 [main] DEBUG com.mymedroads.bot.MymedroadsBotApplication - Running with Spring Boot v3.3.0, Spring v6.1.8
+2026-04-10 10:42:57.891 [main] INFO  com.mymedroads.bot.MymedroadsBotApplication - No active profile set, falling back to 1 default profile: "default"
+2026-04-10 10:42:58.435 [main] INFO  org.springframework.boot.web.embedded.tomcat.TomcatWebServer - Tomcat initialized with port 8080 (http)
+2026-04-10 10:42:58.469 [main] INFO  org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 554 ms
+2026-04-10 10:42:58.794 [main] INFO  org.springframework.boot.web.embedded.tomcat.TomcatWebServer - Tomcat started on port 8080 (http) with context path '/'
+2026-04-10 10:42:58.800 [main] INFO  com.mymedroads.bot.MymedroadsBotApplication - Started MymedroadsBotApplication in 1.141 seconds (process running for 1.791)
+2026-04-10 10:43:40.690 [http-nio-8080-exec-1] INFO  org.springframework.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet'
+2026-04-10 10:43:40.700 [http-nio-8080-exec-1] INFO  org.springframework.web.servlet.DispatcherServlet - Completed initialization in 9 ms
+2026-04-10 10:47:28.207 [http-nio-8080-exec-9] INFO  com.mymedroads.bot.controller.BotController - Received chat request for session: 1fce6de8-a840-42c4-b219-6f2e480d0005
+2026-04-10 10:47:28.209 [http-nio-8080-exec-9] DEBUG com.mymedroads.bot.service.ClaudeService - Created new session: e7667d11-4cfb-4150-a075-ac8094af3420
+2026-04-10 10:47:28.232 [http-nio-8080-exec-9] DEBUG com.mymedroads.bot.service.ClaudeService - Sending 1 messages to Claude (session: e7667d11-4cfb-4150-a075-ac8094af3420)
+2026-04-10 10:47:37.608 [http-nio-8080-exec-9] DEBUG com.mymedroads.bot.service.ClaudeService - Received response (1366 chars) for session: e7667d11-4cfb-4150-a075-ac8094af3420
+2026-04-10 10:48:09.053 [http-nio-8080-exec-3] INFO  com.mymedroads.bot.controller.BotController - Received chat request for session: 1fce6de8-a840-42c4-b219-6f2e480d0005
+2026-04-10 10:48:09.054 [http-nio-8080-exec-3] DEBUG com.mymedroads.bot.service.ClaudeService - Created new session: 795379af-d22d-4bab-9a75-bb249716496b
+2026-04-10 10:48:09.055 [http-nio-8080-exec-3] DEBUG com.mymedroads.bot.service.ClaudeService - Sending 1 messages to Claude (session: 795379af-d22d-4bab-9a75-bb249716496b)
+2026-04-10 10:48:15.766 [http-nio-8080-exec-3] DEBUG com.mymedroads.bot.service.ClaudeService - Received response (1342 chars) for session: 795379af-d22d-4bab-9a75-bb249716496b
+2026-04-10 10:49:30.816 [http-nio-8080-exec-4] INFO  com.mymedroads.bot.controller.BotController - Received chat request for session: 795379af-d22d-4bab-9a75-bb249716496b
+2026-04-10 10:49:30.819 [http-nio-8080-exec-4] DEBUG com.mymedroads.bot.service.ClaudeService - Sending 3 messages to Claude (session: 795379af-d22d-4bab-9a75-bb249716496b)
+2026-04-10 10:49:35.009 [http-nio-8080-exec-4] DEBUG com.mymedroads.bot.service.ClaudeService - Received response (1430 chars) for session: 795379af-d22d-4bab-9a75-bb249716496b
+2026-04-10 10:49:47.601 [http-nio-8080-exec-5] WARN  org.springframework.web.servlet.mvc.support.DefaultHandlerExceptionResolver - Resolved [org.springframework.http.converter.HttpMessageNotReadableException: JSON parse error: Unexpected character ('}' (code 125)): was expecting double-quote to start field name]
+2026-04-10 10:49:56.574 [http-nio-8080-exec-7] INFO  com.mymedroads.bot.controller.BotController - Received chat request for session: 795379af-d22d-4bab-9a75-bb249716496b
+2026-04-10 10:49:56.575 [http-nio-8080-exec-7] DEBUG com.mymedroads.bot.service.ClaudeService - Sending 5 messages to Claude (session: 795379af-d22d-4bab-9a75-bb249716496b)
+2026-04-10 10:50:01.958 [http-nio-8080-exec-7] DEBUG com.mymedroads.bot.service.ClaudeService - Received response (712 chars) for session: 795379af-d22d-4bab-9a75-bb249716496b
+2026-04-10 10:50:36.753 [http-nio-8080-exec-10] INFO  com.mymedroads.bot.controller.BotController - Received chat request for session: 795379af-d22d-4bab-9a75-bb249716496b
+2026-04-10 10:50:36.755 [http-nio-8080-exec-10] DEBUG com.mymedroads.bot.service.ClaudeService - Sending 7 messages to Claude (session: 795379af-d22d-4bab-9a75-bb249716496b)
+2026-04-10 10:50:44.764 [http-nio-8080-exec-10] DEBUG com.mymedroads.bot.service.ClaudeService - Received response (1309 chars) for session: 795379af-d22d-4bab-9a75-bb249716496b
+2026-04-10 10:51:27.918 [http-nio-8080-exec-8] INFO  com.mymedroads.bot.controller.BotController - Received chat request for session: 795379af-d22d-4bab-9a75-bb249716496b
+2026-04-10 10:51:27.919 [http-nio-8080-exec-8] DEBUG com.mymedroads.bot.service.ClaudeService - Sending 9 messages to Claude (session: 795379af-d22d-4bab-9a75-bb249716496b)
+2026-04-10 10:51:38.571 [http-nio-8080-exec-8] DEBUG com.mymedroads.bot.service.ClaudeService - Received response (1254 chars) for session: 795379af-d22d-4bab-9a75-bb249716496b
+2026-04-10 10:54:26.107 [main] INFO  com.mymedroads.bot.MymedroadsBotApplication - Starting MymedroadsBotApplication using Java 21.0.5 with PID 11748 (/Users/rakeshranjan/eclipse-workspace/mymedroads-bot/target/classes started by rakeshranjan in /Users/rakeshranjan/eclipse-workspace/mymedroads-bot)
+2026-04-10 10:54:26.111 [main] DEBUG com.mymedroads.bot.MymedroadsBotApplication - Running with Spring Boot v3.3.0, Spring v6.1.8
+2026-04-10 10:54:26.113 [main] INFO  com.mymedroads.bot.MymedroadsBotApplication - No active profile set, falling back to 1 default profile: "default"
+2026-04-10 10:54:26.667 [main] INFO  org.springframework.boot.web.embedded.tomcat.TomcatWebServer - Tomcat initialized with port 8080 (http)
+2026-04-10 10:54:26.703 [main] INFO  org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 563 ms
+2026-04-10 10:54:27.032 [main] INFO  org.springframework.boot.web.embedded.tomcat.TomcatWebServer - Tomcat started on port 8080 (http) with context path '/'
+2026-04-10 10:54:27.038 [main] INFO  com.mymedroads.bot.MymedroadsBotApplication - Started MymedroadsBotApplication in 1.174 seconds (process running for 1.795)
+2026-04-10 10:54:37.061 [http-nio-8080-exec-1] INFO  org.springframework.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet'
+2026-04-10 10:54:37.062 [http-nio-8080-exec-1] INFO  org.springframework.web.servlet.DispatcherServlet - Completed initialization in 1 ms
+2026-04-10 10:54:37.157 [http-nio-8080-exec-1] INFO  com.mymedroads.bot.controller.BotController - Received chat request for session: 795379af-d22d-4bab-9a75-bb249716496b
+2026-04-10 10:54:37.157 [http-nio-8080-exec-1] DEBUG com.mymedroads.bot.service.ClaudeService - Created new session: 2f065a0a-b137-4bcc-a512-4d3642a50123
+2026-04-10 10:54:37.178 [http-nio-8080-exec-1] DEBUG com.mymedroads.bot.service.ClaudeService - Sending 1 messages to Claude (session: 2f065a0a-b137-4bcc-a512-4d3642a50123)
+2026-04-10 10:54:45.716 [http-nio-8080-exec-1] DEBUG com.mymedroads.bot.service.ClaudeService - Received response (1392 chars) for session: 2f065a0a-b137-4bcc-a512-4d3642a50123
+2026-04-10 10:55:02.949 [http-nio-8080-exec-3] INFO  com.mymedroads.bot.controller.BotController - Received chat request for session: 795379af-d22d-4bab-9a75-bb249716496b
+2026-04-10 10:55:02.950 [http-nio-8080-exec-3] DEBUG com.mymedroads.bot.service.ClaudeService - Created new session: 841f0a92-777b-4501-9b5a-0dcd710e80b0
+2026-04-10 10:55:02.951 [http-nio-8080-exec-3] DEBUG com.mymedroads.bot.service.ClaudeService - Sending 1 messages to Claude (session: 841f0a92-777b-4501-9b5a-0dcd710e80b0)
+2026-04-10 10:55:11.313 [http-nio-8080-exec-3] DEBUG com.mymedroads.bot.service.ClaudeService - Received response (1310 chars) for session: 841f0a92-777b-4501-9b5a-0dcd710e80b0
+2026-04-10 10:55:53.116 [http-nio-8080-exec-4] INFO  com.mymedroads.bot.controller.BotController - Received chat request for session: 841f0a92-777b-4501-9b5a-0dcd710e80b0
+2026-04-10 10:55:53.118 [http-nio-8080-exec-4] DEBUG com.mymedroads.bot.service.ClaudeService - Sending 3 messages to Claude (session: 841f0a92-777b-4501-9b5a-0dcd710e80b0)
+2026-04-10 10:56:00.542 [http-nio-8080-exec-4] DEBUG com.mymedroads.bot.service.ClaudeService - Received response (1263 chars) for session: 841f0a92-777b-4501-9b5a-0dcd710e80b0
+2026-04-10 10:56:51.978 [http-nio-8080-exec-5] INFO  com.mymedroads.bot.controller.BotController - Received chat request for session: 841f0a92-777b-4501-9b5a-0dcd710e80b0
+2026-04-10 10:56:51.979 [http-nio-8080-exec-5] DEBUG com.mymedroads.bot.service.ClaudeService - Sending 5 messages to Claude (session: 841f0a92-777b-4501-9b5a-0dcd710e80b0)
+2026-04-10 10:56:59.996 [http-nio-8080-exec-5] DEBUG com.mymedroads.bot.service.ClaudeService - Received response (1268 chars) for session: 841f0a92-777b-4501-9b5a-0dcd710e80b0
+2026-04-10 10:58:04.234 [http-nio-8080-exec-8] INFO  com.mymedroads.bot.controller.BotController - Received chat request for session: 841f0a92-777b-4501-9b5a-0dcd710e80b0
+2026-04-10 10:58:04.236 [http-nio-8080-exec-8] DEBUG com.mymedroads.bot.service.ClaudeService - Sending 7 messages to Claude (session: 841f0a92-777b-4501-9b5a-0dcd710e80b0)
+2026-04-10 10:58:21.476 [http-nio-8080-exec-8] DEBUG com.mymedroads.bot.service.ClaudeService - Received response (2793 chars) for session: 841f0a92-777b-4501-9b5a-0dcd710e80b0

@@ -14,7 +14,7 @@ import java.util.Map;
 
 @Slf4j
 @RestController
-@RequestMapping("/api/bot")
+@RequestMapping("/conversations")
 @RequiredArgsConstructor
 public class BotController {
 
