@@ -1,4 +1,12 @@
 {
     "java.compile.nullAnalysis.mode": "automatic",
-    "java.configuration.updateBuildConfiguration": "automatic"
+    "java.configuration.updateBuildConfiguration": "automatic",
+    "java.jdt.ls.java.home": "/Library/Java/JavaVirtualMachines/jdk-21.jdk/Contents/Home",
+    "java.configuration.runtimes": [
+        {
+            "name": "JavaSE-21",
+            "path": "/Library/Java/JavaVirtualMachines/jdk-21.jdk/Contents/Home",
+            "default": true
+        }
+    ]
 }

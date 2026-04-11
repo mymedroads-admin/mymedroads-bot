@@ -115,10 +115,11 @@
             <artifactId>spring-ai-jsoup-document-reader</artifactId>
         </dependency>
 
-        <!-- PostgreSQL JDBC driver -->
+        <!-- PostgreSQL JDBC driver: provided by Tomcat lib/, not bundled in WAR -->
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
+            <scope>provided</scope>
         </dependency>
 
         <!-- Lombok -->
@@ -141,13 +142,12 @@
           preventing these from being packaged into WEB-INF/lib.
         -->
 
-        <!-- jtokkit (tiktoken tokenizer): 3.2 MB — used by TokenTextSplitter which
-             we replaced with a character-based splitter -->
+        <!-- jtokkit: required at runtime by Spring AI PgVectorStoreAutoConfiguration
+             (TokenCountBatchingStrategy) even though our own code doesn't use it -->
         <dependency>
             <groupId>com.knuddels</groupId>
             <artifactId>jtokkit</artifactId>
             <version>1.1.0</version>
-            <scope>provided</scope>
         </dependency>
 
         <!-- Annotation-only jars: not needed at runtime -->
@@ -212,10 +212,16 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
-                <configuration>
-                    <!-- Skip repackage: deploy to Tomcat 10 only, no need for executable WAR -->
-                    <skip>true</skip>
-                </configuration>
+                <executions>
+                    <execution>
+                        <id>repackage</id>
+                        <goals><goal>repackage</goal></goals>
+                        <configuration>
+                            <!-- Skip repackage: deploy to Tomcat 10 only, no need for executable WAR -->
+                            <skip>true</skip>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
