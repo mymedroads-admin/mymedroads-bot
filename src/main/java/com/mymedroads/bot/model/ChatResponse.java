@@ -13,6 +13,7 @@ public class ChatResponse {
 
     private String sessionId;
     private String message;
+    private boolean intakeComplete;
     private String model;
     private long inputTokens;
     private long outputTokens;

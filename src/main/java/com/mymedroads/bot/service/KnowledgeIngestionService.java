@@ -2,17 +2,20 @@ package com.mymedroads.bot.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Element;
 import org.springframework.ai.document.Document;
-import org.springframework.ai.reader.jsoup.JsoupDocumentReader;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.core.io.Resource;
-import org.springframework.core.io.UrlResource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -22,6 +25,7 @@ import java.util.Map;
 public class KnowledgeIngestionService {
 
     private final VectorStore vectorStore;
+    private final JdbcTemplate jdbcTemplate;
     private final PathMatchingResourcePatternResolver resourceResolver =
             new PathMatchingResourcePatternResolver();
 
@@ -57,13 +61,57 @@ public class KnowledgeIngestionService {
     }
 
     /**
+     * Ingest a document uploaded via API along with a brief description.
+     * The description is stored as metadata and prepended to the content so it
+     * influences both retrieval relevance and generated answers.
+     *
+     * @param file        the uploaded file (plain-text content expected)
+     * @param description a brief human-readable summary of what the document contains
+     * @return number of chunks ingested into the vector store
+     */
+    public int ingestUploadedDocument(MultipartFile file, String description) throws IOException {
+        String filename = file.getOriginalFilename() != null ? file.getOriginalFilename() : "uploaded-document";
+        log.info("Ingesting uploaded document: {} — description: {}", filename, description);
+
+        String rawText = new String(file.getBytes(), StandardCharsets.UTF_8);
+        if (rawText.isBlank()) {
+            log.warn("Uploaded document '{}' is empty — skipping.", filename);
+            return 0;
+        }
+
+        // Prepend the description so it influences embedding similarity for retrieval
+        String enrichedText = "[Description: " + description + "]\n\n" + rawText;
+
+        Map<String, Object> metadata = new HashMap<>();
+        metadata.put("source", filename);
+        metadata.put("description", description);
+
+        List<Document> chunks = splitDocuments(List.of(new Document(enrichedText, metadata)));
+        log.info("Ingesting {} chunks from uploaded document '{}'", chunks.size(), filename);
+        vectorStore.add(chunks);
+        log.info("Upload ingestion complete: {}", filename);
+        return chunks.size();
+    }
+
+    /**
      * Crawl a URL and ingest its text content using Spring AI's Jsoup document reader.
      */
     public int ingestUrl(String url) throws IOException {
         log.info("Crawling URL: {}", url);
-        Resource urlResource = new UrlResource(url);
-        JsoupDocumentReader reader = new JsoupDocumentReader(urlResource);
-        List<Document> docs = reader.get();
+        org.jsoup.nodes.Document jsoupDoc = Jsoup.connect(url)
+                .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+                .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+                .header("Accept-Language", "en-US,en;q=0.5")
+                .timeout(15_000)
+                .get();
+
+        Element body = jsoupDoc.body();
+        String text = body != null ? body.text() : "";
+
+        List<Document> docs = new ArrayList<>();
+        if (!text.isBlank()) {
+            docs.add(new Document(text, Map.of("source", url)));
+        }
 
         if (docs.isEmpty()) {
             log.warn("No content found at URL: {}", url);
@@ -75,6 +123,21 @@ public class KnowledgeIngestionService {
         vectorStore.add(chunks);
         log.info("URL ingestion complete: {}", url);
         return chunks.size();
+    }
+
+    /**
+     * Delete all vector store chunks whose metadata source matches the given value.
+     * Works for both filenames (from file/classpath ingestion) and URLs.
+     *
+     * @param source the exact source value stored at ingest time (filename or URL)
+     * @return number of chunks deleted
+     */
+    public int deleteBySource(String source) {
+        log.info("Deleting vector store chunks for source: {}", source);
+        int deleted = jdbcTemplate.update(
+                "DELETE FROM vector_store WHERE metadata->>'source' = ?", source);
+        log.info("Deleted {} chunks for source: {}", deleted, source);
+        return deleted;
     }
 
     /**

@@ -1,0 +1,9 @@
+{
+  "properties": [
+    {
+      "name": "patient-lead.api.url",
+      "type": "java.lang.String",
+      "description": "URL of the external CRM / lead API to which confirmed patient intake profiles are POSTed. Set via the PATIENT_LEAD_API_URL environment variable."
+    }
+  ]
+}

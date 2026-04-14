@@ -7,8 +7,10 @@ import com.mymedroads.bot.service.ConversationSessionStore;
 import com.mymedroads.bot.service.KnowledgeIngestionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Map;
 
@@ -89,5 +91,49 @@ public class BotController {
         log.info("Starting URL ingestion: {}", url);
         int chunks = ingestionService.ingestUrl(url);
         return ResponseEntity.ok(Map.of("status", "complete", "url", url, "chunksIngested", chunks));
+    }
+
+    /**
+     * Delete all vector store chunks for a given source (filename or URL).
+     * Body: { "source": "document.txt" }  or  { "source": "https://example.com/page" }
+     */
+    @DeleteMapping("/admin/ingest/remove")
+    public ResponseEntity<Map<String, Object>> deleteBySource(@RequestBody Map<String, String> body) throws Exception {
+        String source = body.get("source");
+        if (source == null || source.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "source is required"));
+        }
+        int deleted = ingestionService.deleteBySource(source);
+        if (deleted == 0) {
+            return ResponseEntity.ok(Map.of("status", "not_found", "source", source, "chunksDeleted", 0));
+        }
+        return ResponseEntity.ok(Map.of("status", "deleted", "source", source, "chunksDeleted", deleted));
+    }
+
+    /**
+     * Ingest an uploaded document along with a brief description.
+     * Multipart form fields:
+     *   file        — the document file (plain text)
+     *   description — a brief summary of what the document contains
+     */
+    @PostMapping(value = "/admin/ingest/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<Map<String, Object>> ingestUpload(
+            @RequestPart("file") MultipartFile file,
+            @RequestPart("description") String description) throws Exception {
+
+        if (file.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "file must not be empty"));
+        }
+        if (description == null || description.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "description is required"));
+        }
+
+        log.info("Starting upload ingestion: {} — {}", file.getOriginalFilename(), description);
+        int chunks = ingestionService.ingestUploadedDocument(file, description);
+        return ResponseEntity.ok(Map.of(
+                "status", "complete",
+                "filename", file.getOriginalFilename(),
+                "description", description,
+                "chunksIngested", chunks));
     }
 }

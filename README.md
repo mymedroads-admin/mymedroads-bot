@@ -143,13 +143,45 @@ Send a message. Omit `sessionId` to start a new conversation.
 
 ### Knowledge Ingestion (RAG)
 
-**POST** `/conversations/admin/ingest/documents` — Ingest all PDFs and TXT files from `knowledge/`
+**POST** `/conversations/admin/ingest/documents` — Ingest all TXT files from `knowledge/`
 
 **POST** `/conversations/admin/ingest/url` — Crawl and ingest a URL
 
 ```json
 // Request body
 { "url": "https://uat.mymedroads.com/hospitals" }
+```
+
+**POST** `/conversations/admin/ingest/upload` — Upload a document with a description (`multipart/form-data`)
+
+| Field | Type | Description |
+|---|---|---|
+| `file` | file part | Plain-text document to ingest |
+| `description` | text part | Brief summary of what the document contains |
+
+```bash
+curl -X POST http://localhost:8080/conversations/admin/ingest/upload \
+  -F "file=@/path/to/document.txt" \
+  -F "description=MyMedRoads hospital pricing guide Q1 2026"
+```
+
+```json
+// Response
+{ "status": "complete", "filename": "document.txt", "description": "...", "chunksIngested": 14 }
+```
+
+**DELETE** `/conversations/admin/ingest/remove` — Remove all chunks for a source (filename or URL)
+
+```json
+// Request body — use the exact filename or URL that was ingested
+{ "source": "document.txt" }
+{ "source": "https://uat.mymedroads.com/hospitals" }
+```
+
+```json
+// Response
+{ "status": "deleted", "source": "document.txt", "chunksDeleted": 14 }
+// Returns "not_found" with chunksDeleted: 0 if no matching chunks exist
 ```
 
 ### Health Check
@@ -162,23 +194,53 @@ Send a message. Omit `sessionId` to start a new conversation.
 
 ---
 
-## Adding Knowledge Base Content
+## Managing the Knowledge Base
 
-Drop `.pdf` or `.txt` files into [`src/main/resources/knowledge/`](src/main/resources/knowledge/), rebuild, then call the ingest endpoint:
+### Adding content
+
+There are three ways to add content to the vector store:
+
+**1. Classpath documents** — Drop `.txt` files into [`src/main/resources/knowledge/`](src/main/resources/knowledge/), rebuild, then call the ingest endpoint:
 
 ```bash
-# Ingest local documents
 curl -X POST http://localhost:8080/conversations/admin/ingest/documents
+```
 
-# Ingest from a URL
+**2. URL crawl** — Crawl and ingest a live web page:
+
+```bash
 curl -X POST http://localhost:8080/conversations/admin/ingest/url \
   -H "Content-Type: application/json" \
   -d '{"url": "https://uat.mymedroads.com"}'
 ```
 
+**3. File upload** — Upload a document at runtime without rebuilding:
+
+```bash
+curl -X POST http://localhost:8080/conversations/admin/ingest/upload \
+  -F "file=@/path/to/document.txt" \
+  -F "description=Hospital pricing guide for Q1 2026"
+```
+
 Documents are chunked into ~500-token segments, embedded via Ollama, and stored in PGVector. At query time the top 3 most relevant chunks are injected into the Claude system prompt.
 
-> Re-running ingestion on the same content will create duplicate chunks. Truncate the `vector_store` table in PostgreSQL before re-ingesting.
+### Removing content
+
+Remove all chunks for a specific source by its filename or URL:
+
+```bash
+# Remove an uploaded or classpath document
+curl -X DELETE http://localhost:8080/conversations/admin/ingest/remove \
+  -H "Content-Type: application/json" \
+  -d '{"source": "document.txt"}'
+
+# Remove a crawled URL
+curl -X DELETE http://localhost:8080/conversations/admin/ingest/remove \
+  -H "Content-Type: application/json" \
+  -d '{"source": "https://uat.mymedroads.com"}'
+```
+
+> Re-running ingestion on the same source creates duplicate chunks. Delete the source first, then re-ingest to refresh content.
 
 ---
 
@@ -193,10 +255,12 @@ src/main/java/com/mymedroads/bot/
 ├── model/
 │   ├── ChatMessage.java              # Conversation message
 │   ├── ChatRequest.java              # Incoming request DTO
-│   └── ChatResponse.java             # Outgoing response DTO
+│   ├── ChatResponse.java             # Outgoing response DTO
+│   └── PatientProfile.java           # Patient lead data model
 └── service/
     ├── ClaudeService.java            # Claude API + RAG integration
     ├── ConversationSessionStore.java # In-memory session management
-    ├── KnowledgeIngestionService.java # Document + URL ingestion
+    ├── KnowledgeIngestionService.java # Document, URL, and file upload ingestion + deletion
+    ├── PatientLeadApiService.java    # Patient lead CRM integration
     └── RagService.java               # Vector similarity search
 ```
