@@ -10,34 +10,27 @@ import org.springframework.web.client.RestClient;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/**
- * Submits a captured patient intake profile to the external CRM / lead API.
- * Configure the target URL via the PATIENT_LEAD_API_URL environment variable.
- */
 @Slf4j
 @Service
 public class PatientLeadApiService {
 
     private final RestClient restClient;
 
-    @Value("${patient-lead.api.url}")
+    @Value("${mymedroads-api-suite.url}")
     private String apiUrl;
 
     public PatientLeadApiService(RestClient.Builder builder) {
         this.restClient = builder.build();
     }
 
-    /**
-     * POST the confirmed patient profile to the external lead API.
-     * Errors are caught and logged so that a downstream failure never disrupts the chat response.
-     */
-    @SuppressWarnings("null") // apiUrl is guarded non-blank above; APPLICATION_JSON is a non-null constant
+    @SuppressWarnings("null")
     public void submitLead(PatientProfile profile, String sessionId) {
         if (apiUrl == null || apiUrl.isBlank()) {
-            log.warn("patient-lead.api.url is not configured — skipping lead submission for session {}", sessionId);
+            log.warn("mymedroads-api-suite.url is not configured — skipping lead submission for session {}", sessionId);
             return;
         }
 
+        apiUrl = apiUrl.endsWith("/") ? apiUrl + "submitlead?channel=chatbot" : apiUrl + "/submitlead?channel=chatbot";
         try {
             Map<String, String> payload = new LinkedHashMap<>();
             payload.put("sessionId", sessionId);

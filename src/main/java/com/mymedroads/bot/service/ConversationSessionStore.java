@@ -6,6 +6,7 @@ import com.mymedroads.bot.model.ChatMessage;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -26,7 +27,8 @@ import java.util.concurrent.ConcurrentHashMap;
 @RequiredArgsConstructor
 public class ConversationSessionStore {
 
-    private static final String SESSIONS_FILE = "/var/lib/tomcat10/sessions/bot_claude_sessions.json";
+    @Value("${session.file}")
+    private String sessionsFile;
 
     private final ObjectMapper objectMapper;
 
@@ -34,30 +36,30 @@ public class ConversationSessionStore {
 
     @PostConstruct
     public void loadSessionsFromDisk() {
-        File file = new File(SESSIONS_FILE);
+        File file = new File(sessionsFile);
         if (!file.exists()) {
-            log.info("No session file found at {}; starting with empty session store", SESSIONS_FILE);
+            log.info("No session file found at {}; starting with empty session store", sessionsFile);
             return;
         }
         try {
             Map<String, List<ChatMessage>> loaded = objectMapper.readValue(
                     file, new TypeReference<Map<String, List<ChatMessage>>>() {});
             sessions.putAll(loaded);
-            log.info("Loaded {} session(s) from {}", loaded.size(), SESSIONS_FILE);
+            log.info("Loaded {} session(s) from {}", loaded.size(), sessionsFile);
         } catch (Exception e) {
-            log.error("Failed to load sessions from {}: {}", SESSIONS_FILE, e.getMessage(), e);
+            log.error("Failed to load sessions from {}: {}", sessionsFile, e.getMessage(), e);
         }
     }
 
     @Scheduled(fixedDelay = 60_000)
     public void saveSessionsToDisk() {
-        File file = new File(SESSIONS_FILE);
+        File file = new File(sessionsFile);
         try {
             file.getParentFile().mkdirs();
             objectMapper.writerWithDefaultPrettyPrinter().writeValue(file, sessions);
-            log.debug("Saved {} session(s) to {}", sessions.size(), SESSIONS_FILE);
+            log.debug("Saved {} session(s) to {}", sessions.size(), sessionsFile);
         } catch (Exception e) {
-            log.error("Failed to save sessions to {}: {}", SESSIONS_FILE, e.getMessage(), e);
+            log.error("Failed to save sessions to {}: {}", sessionsFile, e.getMessage(), e);
         }
     }
 
