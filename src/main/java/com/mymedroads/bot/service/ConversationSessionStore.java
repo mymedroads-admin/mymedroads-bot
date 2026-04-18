@@ -12,8 +12,10 @@ import org.springframework.stereotype.Component;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -33,6 +35,7 @@ public class ConversationSessionStore {
     private final ObjectMapper objectMapper;
 
     private final Map<String, List<ChatMessage>> sessions = new ConcurrentHashMap<>();
+    private final Set<String> intakeCompletedSessions = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     @PostConstruct
     public void loadSessionsFromDisk() {
@@ -83,5 +86,14 @@ public class ConversationSessionStore {
 
     public void clearSession(String sessionId) {
         sessions.remove(sessionId);
+        intakeCompletedSessions.remove(sessionId);
+    }
+
+    public boolean isIntakeCompleted(String sessionId) {
+        return intakeCompletedSessions.contains(sessionId);
+    }
+
+    public void markIntakeCompleted(String sessionId) {
+        intakeCompletedSessions.add(sessionId);
     }
 }

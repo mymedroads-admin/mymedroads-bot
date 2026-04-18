@@ -15,6 +15,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -27,6 +29,11 @@ public class ClaudeService {
     // [INTAKE_COMPLETE:{"name":"...","age":"...","gender":"...","mobile":"...","email":"...","destination":"...","medicalIssue":"..."}]
     private static final Pattern INTAKE_MARKER =
             Pattern.compile("\\[INTAKE_COMPLETE:(\\{[^\\[\\]]+\\})\\]", Pattern.DOTALL);
+
+    // Matches the marker Claude emits when user asks about their case status:
+    // [CASE_STATUS_REQUEST:<urn>]
+    private static final Pattern CASE_STATUS_MARKER =
+            Pattern.compile("\\[CASE_STATUS_REQUEST:([^\\]]+)\\]");
 
     private final AnthropicClient anthropicClient;
     private final ConversationSessionStore sessionStore;
@@ -98,10 +105,27 @@ public class ClaudeService {
         String visibleText = assistantText;
         Matcher matcher = INTAKE_MARKER.matcher(assistantText);
         if (matcher.find()) {
-            intakeComplete = true;
-            String profileJson = matcher.group(1);
             visibleText = assistantText.replace(matcher.group(0), "").strip();
-            submitPatientLead(profileJson, sessionId);
+            if (!sessionStore.isIntakeCompleted(sessionId)) {
+                intakeComplete = true;
+                sessionStore.markIntakeCompleted(sessionId);
+                Optional<String> refNumber = submitPatientLead(matcher.group(1), sessionId);
+                if (refNumber.isPresent()) {
+                    visibleText = visibleText + "\n\nYour unique reference number is **" + refNumber.get()
+                            + "**. Please save this for future correspondence.";
+                }
+            } else {
+                log.debug("Ignoring duplicate INTAKE_COMPLETE marker for session: {}", sessionId);
+            }
+        }
+
+        // Detect the case-status marker emitted by Claude when user asks about their case
+        Matcher statusMatcher = CASE_STATUS_MARKER.matcher(visibleText);
+        if (statusMatcher.find()) {
+            String urn = statusMatcher.group(1).strip();
+            visibleText = visibleText.replace(statusMatcher.group(0), "").strip();
+            Map<String, Object> statusResponse = patientLeadApiService.fetchCaseStatus(urn);
+            visibleText = visibleText + "\n\n" + formatCaseStatus(urn, statusResponse);
         }
 
         // Store assistant reply in history (without the marker)
@@ -123,12 +147,42 @@ public class ClaudeService {
                 .build();
     }
 
-    private void submitPatientLead(String profileJson, String sessionId) {
+    private String formatCaseStatus(String urn, Map<String, Object> statusResponse) {
+        if (statusResponse.containsKey("error")) {
+            return "I'm sorry, I was unable to fetch the status of your case at this time. "
+                    + "Please contact myMedRoads support at contact@mymedroads.com or call/WhatsApp +91-9844837371.";
+        }
+        String dataDescription = statusResponse.entrySet().stream()
+                .filter(e -> e.getValue() != null && !e.getValue().toString().isBlank())
+                .map(e -> e.getKey() + ": " + e.getValue())
+                .reduce((a, b) -> a + ", " + b)
+                .orElse("no details available");
+
+        String prompt = "The user asked about their case status. Their URN is " + urn
+                + ". Here is the case data retrieved from the system: " + dataDescription
+                + ". As Mira, present this information to the user in a warm, clear, and easy-to-understand way. "
+                + "Do not include any marker or JSON. Keep it concise.";
+
+        Message formatted = anthropicClient.messages().create(
+                MessageCreateParams.builder()
+                        .model(model)
+                        .maxTokens(256)
+                        .addUserMessage(prompt)
+                        .build());
+
+        return formatted.content().stream()
+                .flatMap(block -> block.text().stream())
+                .map(tb -> tb.text())
+                .reduce("", (a, b) -> a + b);
+    }
+
+    private Optional<String> submitPatientLead(String profileJson, String sessionId) {
         try {
             PatientProfile profile = objectMapper.readValue(profileJson, PatientProfile.class);
-            patientLeadApiService.submitLead(profile, sessionId);
+            return patientLeadApiService.submitLead(profile, sessionId);
         } catch (Exception e) {
             log.error("Failed to parse patient profile JSON for session {}: {}", sessionId, e.getMessage(), e);
+            return Optional.empty();
         }
     }
 }
