@@ -10,6 +10,7 @@ import java.time.Duration;
 @Configuration
 public class OllamaHttpConfig {
 
+    @SuppressWarnings("null")
     @Bean
     RestClientCustomizer ollamaRestClientCustomizer() {
         return builder -> {

@@ -11,7 +11,6 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-
 import java.util.Map;
 
 @Slf4j
@@ -24,18 +23,34 @@ public class BotController {
     private final ConversationSessionStore sessionStore;
     private final KnowledgeIngestionService ingestionService;
 
-    /**
-     * Send a message to the bot and get a response.
-     * Include a sessionId in the request body to continue an existing conversation.
-     * Omit sessionId (or set to null) to start a new conversation.
-     */
+    private static final long INTERIM_THRESHOLD_MS = 10_000;
+
+    private static final java.util.regex.Pattern CLEAR_INTENT_PATTERN = java.util.regex.Pattern.compile(
+            "(?i)\\b(clear|delete|reset|forget|erase|wipe)\\b.*\\b(conversation|history|chat|messages?|session)\\b"
+            + "|\\b(start\\s+(over|fresh|new|afresh)|forget\\s+everything|new\\s+conversation)\\b"
+    );
+
     @PostMapping("/chat")
     public ResponseEntity<?> chat(@RequestBody ChatRequest request) {
         if (request.getMessage() == null || request.getMessage().isBlank()) {
             return ResponseEntity.badRequest().body(Map.of("error", "message cannot be blank"));
         }
         log.info("Received chat request for session: {}", request.getSessionId());
+
+        boolean clearIntent = CLEAR_INTENT_PATTERN.matcher(request.getMessage()).find();
+        if (clearIntent) {
+            log.info("Clear-conversation intent detected for session: {}", request.getSessionId());
+            sessionStore.clearSession(request.getSessionId());
+        }
+
+        long start = System.currentTimeMillis();
         ChatResponse response = claudeService.chat(request);
+        response.setInterimShown(System.currentTimeMillis() - start > INTERIM_THRESHOLD_MS);
+
+        if (clearIntent) {
+            response.setMessage("Your conversation history has been cleared.\n\n" + response.getMessage());
+        }
+
         return ResponseEntity.ok(response);
     }
 

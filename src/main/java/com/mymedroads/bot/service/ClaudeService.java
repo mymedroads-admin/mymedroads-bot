@@ -28,7 +28,7 @@ public class ClaudeService {
     // Matches the machine-readable marker Claude emits once intake is confirmed:
     // [INTAKE_COMPLETE:{"name":"...","age":"...","gender":"...","mobile":"...","email":"...","destination":"...","medicalIssue":"..."}]
     private static final Pattern INTAKE_MARKER =
-            Pattern.compile("\\[INTAKE_COMPLETE:(\\{[^\\[\\]]+\\})\\]", Pattern.DOTALL);
+            Pattern.compile("\\[INTAKE_COMPLETE:(\\{.*?\\})\\]", Pattern.DOTALL);
 
     // Matches the marker Claude emits when user asks about their case status:
     // [CASE_STATUS_REQUEST:<urn>]

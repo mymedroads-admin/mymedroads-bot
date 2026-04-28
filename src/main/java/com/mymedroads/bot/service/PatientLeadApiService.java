@@ -43,23 +43,18 @@ public class PatientLeadApiService {
             payload.put("destination", profile.getDestination());
             payload.put("medicalIssue", profile.getMedicalIssue());
 
-            restClient.post()
+            Map<String, Object> submitResponse = restClient.post()
                     .uri(baseUrl + "/submitlead?channel=chatbot")
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(payload)
                     .retrieve()
-                    .toBodilessEntity();
+                    .body(Map.class);
 
             log.info("Patient lead submitted successfully for session: {}", sessionId);
 
-            Map<String, Object> refResponse = restClient.get()
-                    .uri(baseUrl + "/geturn?sessionId=" + sessionId)
-                    .retrieve()
-                    .body(Map.class);
-
-            if (refResponse != null && refResponse.containsKey("urn")) {
-                String urn = refResponse.get("urn").toString();
-                log.info("URN {} fetched for session: {}", urn, sessionId);
+            if (submitResponse != null && submitResponse.containsKey("urn")) {
+                String urn = submitResponse.get("urn").toString();
+                log.info("URN {} received for session: {}", urn, sessionId);
                 return Optional.of(urn);
             }
         } catch (Exception e) {

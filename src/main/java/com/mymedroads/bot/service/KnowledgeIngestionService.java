@@ -37,6 +37,7 @@ public class KnowledgeIngestionService {
      * Ingest all .txt documents from classpath:knowledge/.
      * PDFs should be pre-converted to .txt before placing in this folder.
      */
+    @SuppressWarnings("null")
     public int ingestDocuments() throws IOException {
         List<Document> allDocs = new ArrayList<>();
 
@@ -96,6 +97,7 @@ public class KnowledgeIngestionService {
     /**
      * Crawl a URL and ingest its text content using Spring AI's Jsoup document reader.
      */
+    @SuppressWarnings("null")
     public int ingestUrl(String url) throws IOException {
         log.info("Crawling URL: {}", url);
         org.jsoup.nodes.Document jsoupDoc = Jsoup.connect(url)
@@ -144,6 +146,7 @@ public class KnowledgeIngestionService {
      * Character-based text splitter. Replaces TokenTextSplitter (avoids jtokkit dependency).
      * Chunks documents into CHUNK_SIZE characters with CHUNK_OVERLAP overlap.
      */
+    @SuppressWarnings("null")
     private List<Document> splitDocuments(List<Document> docs) {
         List<Document> chunks = new ArrayList<>();
         for (Document doc : docs) {
