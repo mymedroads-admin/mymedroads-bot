@@ -36,6 +36,9 @@ public class ConversationSessionStore {
 
     private final Map<String, List<ChatMessage>> sessions = new ConcurrentHashMap<>();
     private final Set<String> intakeCompletedSessions = Collections.newSetFromMap(new ConcurrentHashMap<>());
+    private final Set<String> pendingNewSessionConfirmation = Collections.newSetFromMap(new ConcurrentHashMap<>());
+    private final Set<String> needsIntroductionSessions = Collections.newSetFromMap(new ConcurrentHashMap<>());
+    private final Map<String, String> languageHints = new ConcurrentHashMap<>();
 
     @PostConstruct
     public void loadSessionsFromDisk() {
@@ -87,6 +90,41 @@ public class ConversationSessionStore {
     public void clearSession(String sessionId) {
         sessions.remove(sessionId);
         intakeCompletedSessions.remove(sessionId);
+        pendingNewSessionConfirmation.remove(sessionId);
+        needsIntroductionSessions.remove(sessionId);
+        languageHints.remove(sessionId);
+    }
+
+    public void markPendingNewSession(String sessionId) {
+        pendingNewSessionConfirmation.add(sessionId);
+    }
+
+    public boolean isPendingNewSession(String sessionId) {
+        return pendingNewSessionConfirmation.contains(sessionId);
+    }
+
+    public void clearPendingNewSession(String sessionId) {
+        pendingNewSessionConfirmation.remove(sessionId);
+    }
+
+    public void markNeedsIntroduction(String sessionId) {
+        needsIntroductionSessions.add(sessionId);
+    }
+
+    public boolean needsIntroduction(String sessionId) {
+        return needsIntroductionSessions.contains(sessionId);
+    }
+
+    public void clearNeedsIntroduction(String sessionId) {
+        needsIntroductionSessions.remove(sessionId);
+    }
+
+    public void setLanguageHint(String sessionId, String hint) {
+        languageHints.put(sessionId, hint);
+    }
+
+    public String getLanguageHint(String sessionId) {
+        return languageHints.getOrDefault(sessionId, "");
     }
 
     public boolean isIntakeCompleted(String sessionId) {

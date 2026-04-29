@@ -1,5 +1,6 @@
 package com.mymedroads.bot.controller;
 
+import com.mymedroads.bot.model.ChatMessage;
 import com.mymedroads.bot.model.ChatRequest;
 import com.mymedroads.bot.model.ChatResponse;
 import com.mymedroads.bot.service.ClaudeService;
@@ -11,6 +12,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import java.util.List;
 import java.util.Map;
 
 @Slf4j
@@ -62,6 +64,18 @@ public class BotController {
         String sessionId = sessionStore.createSession();
         log.info("Created new session: {}", sessionId);
         return ResponseEntity.ok(Map.of("sessionId", sessionId));
+    }
+
+    /**
+     * Fetch the full transcript for a session.
+     */
+    @GetMapping("/session/{sessionId}/transcript")
+    public ResponseEntity<?> getTranscript(@PathVariable String sessionId) {
+        if (!sessionStore.sessionExists(sessionId)) {
+            return ResponseEntity.notFound().build();
+        }
+        List<ChatMessage> history = sessionStore.getHistory(sessionId);
+        return ResponseEntity.ok(Map.of("sessionId", sessionId, "messages", history));
     }
 
     /**
