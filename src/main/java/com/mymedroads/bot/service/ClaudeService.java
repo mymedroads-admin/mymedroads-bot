@@ -4,6 +4,7 @@ import com.anthropic.client.AnthropicClient;
 import com.anthropic.models.messages.Message;
 import com.anthropic.models.messages.MessageCreateParams;
 import com.anthropic.models.messages.TextBlockParam;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mymedroads.bot.model.ChatMessage;
 import com.mymedroads.bot.model.ChatRequest;
@@ -12,9 +13,17 @@ import com.mymedroads.bot.model.PatientProfile;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClient;
 
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.time.format.TextStyle;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Matcher;
@@ -34,47 +43,29 @@ public class ClaudeService {
     private static final Pattern GREETING_PATTERN = Pattern.compile(
         "(?i)^\\s*(" +
         // English
-        "hi|hello|hey|howdy|greetings|" +
-        "good\\s+(?:morning|afternoon|evening|night|day)|" +
-        // Hindi / Sanskrit-based (transliterated)
-        "namaste|namaskar[am]?|namasthe|pranam|" +
-        // South Indian (transliterated)
-        "vanakkam|namaskara|namaskaram|shubhodaya|" +
-        // Punjabi (transliterated)
-        "sat\\s+sri\\s+akal|waheguru|" +
-        // Bengali (transliterated)
-        "nomoshkar|" +
-        // Gujarati (transliterated)
-        "kem\\s+cho|" +
-        // Native scripts: Hindi, Tamil, Kannada, Telugu, Bengali, Punjabi, Malayalam
-        "नमस्ते|नमस्कार|" +
-        "வணக்கம்|" +
-        "ನಮಸ್ಕಾರ|" +
-        "నమస్కారం|వనక్కం|" +
-        "নমস্কার|" +
-        "ਸਤ\\s+ਸ੍ਰੀ\\s+ਅਕਾਲ|" +
-        "നമസ്കാരം|" +
-        // Spanish
-        "hola|buenos?\\s+(?:d[íi]as?|tardes?|noches?)|" +
+        "hi|hello|hey|howdy|greetings|good\\s+(?:morning|afternoon|evening|night|day)|" +
+        // Hindi: namaste (\u0928\u092E\u0938\u094D\u0924\u0947), namaskar (\u0928\u092E\u0938\u094D\u0915\u093E\u0930)
+        "namaste|namaskar[am]?|namasthe|pranam|\u0928\u092E\u0938\u094D\u0924\u0947|\u0928\u092E\u0938\u094D\u0915\u093E\u0930|" +
+        // Bengali: nomoshkar (\u09A8\u09AE\u09B8\u09CD\u0995\u09BE\u09B0)
+        "nomoshkar|\u09A8\u09AE\u09B8\u09CD\u0995\u09BE\u09B0|" +
+        // Swahili
+        "jambo|habari|" +
+        // Arabic: marhaba, salam, ahlan, as-salamu alaykum, sabah/masa al-khayr
+        "marhaba|salam|ahlan|as-?salamu\\s+alaykum|" +
+        "\u0645\u0631\u062D\u0628\u0627|\u0633\u0644\u0627\u0645|\u0623\u0647\u0644\u0627\u064B|\u0623\u0647\u0644\u0627|\u0627\u0644\u0633\u0644\u0627\u0645\\s+\u0639\u0644\u064A\u0643\u0645|" +
+        "\u0635\u0628\u0627\u062D\\s+\u0627\u0644\u062E\u064A\u0631|\u0645\u0633\u0627\u0621\\s+\u0627\u0644\u062E\u064A\u0631|" +
         // French
         "bonjour|salut|bonsoir|" +
-        // German
-        "hallo|guten\\s+(?:morgen|tag|abend)|" +
-        // Arabic (transliterated + native script)
-        "marhaba|salam|ahlan|as-?salamu\\s+alaykum|" +
-        "مرحبا|سلام|أهلاً|أهلا|السلام\\s+عليكم|صباح\\s+الخير|مساء\\s+الخير|أهلاً\\s+وسهلاً|" +
-        // Italian
-        "ciao|" +
-        // Portuguese
-        "oi|ol[aá]|bom\\s+dia|boa\\s+(?:tarde|noite)|" +
-        // Japanese (transliterated)
-        "konnichiwa|ohayo[u]?|konbanwa|" +
-        // Korean (transliterated)
-        "annyeong(?:haseyo)?|" +
-        // Russian (transliterated)
-        "privet|zdravstvuyte|" +
-        // Swahili
-        "jambo|habari" +
+        // Spanish: hola, buenos dias/tardes/noches (\u00ED=accented i)
+        "hola|buenos?\\s+(?:d[i\u00ED]as?|tardes?|noches?)|" +
+        // German: hallo, guten morgen/tag/abend, servus, moin
+        "hallo|guten\\s+(?:morgen|tag|abend)|servus|moin|" +
+        // Russian: privet (\u043F\u0440\u0438\u0432\u0435\u0442), zdravstvuyte (\u0437\u0434\u0440\u0430\u0432\u0441\u0442\u0432\u0443\u0439\u0442\u0435), dobry den/utro/vecher
+        "privet|zdravstvuyte|\u043F\u0440\u0438\u0432\u0435\u0442|\u0437\u0434\u0440\u0430\u0432\u0441\u0442\u0432\u0443\u0439\u0442\u0435|\u0434\u043E\u0431\u0440\u044B\u0439\\s+\u0434\u0435\u043D\u044C|\u0434\u043E\u0431\u0440\u043E\u0435\\s+\u0443\u0442\u0440\u043E|\u0434\u043E\u0431\u0440\u044B\u0439\\s+\u0432\u0435\u0447\u0435\u0440|" +
+        // Amharic: selam (\u1230\u120B\u121D), tenaystilign (\u1324\u1293\u12ED\u1235\u1325\u120D\u129D), endemin (\u12A5\u1295\u12F0\u121D\u1295...)
+        "selam|tenaystilign|\u1230\u120B\u121D|\u1324\u1293\u12ED\u1235\u1325\u120D\u129D|\u12A5\u1295\u12F0\u121D\u1295|" +
+        // Chinese Mandarin: ni hao, nin hao, zao shang hao, wan shang hao, xia wu hao
+        "\u4F60\u597D|\u60A8\u597D|\u65E9\u4E0A\u597D|\u665A\u4E0A\u597D|\u4E0B\u5348\u597D" +
         ")\\s+mira\\b.*",
         Pattern.DOTALL
     );
@@ -98,6 +89,9 @@ public class ClaudeService {
 
     @Value("${anthropic.system-prompt}")
     private String systemPrompt;
+
+    @Value("${mymedroads-api-suite.url}")
+    private String apiUrl;
 
     private static final Pattern CONFIRM_YES_PATTERN =
             Pattern.compile("(?i)^\\s*(yes|yeah|yep|yup|sure|ok|okay|y|new|start\\s+new|new\\s+session|" +
@@ -205,6 +199,48 @@ public class ClaudeService {
                     visibleText = visibleText + "\n\nYour unique reference number is **" + refNumber.get()
                             + "**. Please save this for future correspondence.";
                 }
+                //Send a confirmation message to the user lead API
+                String baseUrl = apiUrl.endsWith("/") ? apiUrl.substring(0, apiUrl.length() - 1) : apiUrl;
+                PatientProfile profile;
+                try {
+                    profile = new ObjectMapper().readValue(matcher.group(1), PatientProfile.class);
+                    Map<String, String> payload = new LinkedHashMap<>();
+                    payload.put("recipientEmail", profile.getEmail());
+                    payload.put("urn", refNumber.get());
+                    ZonedDateTime utcNow = ZonedDateTime.now(ZoneOffset.UTC);
+                    int day = utcNow.getDayOfMonth();
+                    String ordinal = (day % 10 == 1 && day != 11) ? "st"
+                                   : (day % 10 == 2 && day != 12) ? "nd"
+                                   : (day % 10 == 3 && day != 13) ? "rd" : "th";
+                    String registrationDate = utcNow.getDayOfWeek().getDisplayName(TextStyle.FULL, Locale.ENGLISH)
+                                           + ", " + day + ordinal + " " + utcNow.getYear();
+                    payload.put("registration_date", registrationDate);
+
+                    payload.put("channel", "Mira");
+                    payload.put("name", profile.getName());
+                    payload.put("gender", profile.getGender());
+                    payload.put("age", String.valueOf(profile.getAge()));
+                    payload.put("destination", profile.getDestination());
+                    payload.put("medical_issue", profile.getMedicalIssue());
+
+                    RestClient restClient = RestClient.builder().build();
+                    ResponseEntity<Void> submitResponse = restClient.post()
+                        .uri(baseUrl + "/sendemail/new_registration_confirmation_email")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body(payload)
+                        .retrieve()
+                        .toBodilessEntity();
+                    log.info("Confirmation email sent for session: {} with response: {}", sessionId, submitResponse.getStatusCode());
+
+                    if (submitResponse.getStatusCode().value() != 202) {
+                        visibleText = visibleText + "\n\n"
+                                + generateEmailFailureMessage(assistantText, profile.getEmail());
+                    }
+
+                } catch (JsonProcessingException e) {
+                    log.info("Failed to send confirmation email for session: {}", sessionId);
+
+                }
             } else {
                 log.debug("Ignoring duplicate INTAKE_COMPLETE marker for session: {}", sessionId);
             }
@@ -296,6 +332,24 @@ public class ClaudeService {
                 MessageCreateParams.builder()
                         .model(model)
                         .maxTokens(256)
+                        .addUserMessage(prompt)
+                        .build());
+        return response.content().stream()
+                .flatMap(block -> block.text().stream())
+                .map(tb -> tb.text())
+                .reduce("", (a, b) -> a + b);
+    }
+
+    private String generateEmailFailureMessage(String languageHint, String email) {
+        String prompt = "You are Mira, a warm and caring medical travel assistant from myMedRoads. "
+                + "Inform the patient in the EXACT SAME LANGUAGE as the following text that the confirmation email "
+                + "could not be delivered to **" + email + "**, and ask them to verify their email address. "
+                + "Keep it to 1-2 sentences. Do not switch languages. "
+                + "Reference text for language detection: \"" + languageHint + "\"";
+        Message response = anthropicClient.messages().create(
+                MessageCreateParams.builder()
+                        .model(model)
+                        .maxTokens(128)
                         .addUserMessage(prompt)
                         .build());
         return response.content().stream()
