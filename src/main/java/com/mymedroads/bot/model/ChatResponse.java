@@ -14,6 +14,7 @@ public class ChatResponse {
 
     private String sessionId;
     private String message;
+    private String followUpMessage;
     @JsonIgnore
     private boolean intakeComplete;
     private boolean interimShown;

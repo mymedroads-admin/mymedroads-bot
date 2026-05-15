@@ -38,7 +38,9 @@ public class ConversationSessionStore {
     private final Set<String> intakeCompletedSessions = Collections.newSetFromMap(new ConcurrentHashMap<>());
     private final Set<String> pendingNewSessionConfirmation = Collections.newSetFromMap(new ConcurrentHashMap<>());
     private final Set<String> needsIntroductionSessions = Collections.newSetFromMap(new ConcurrentHashMap<>());
+    private final Set<String> pendingLanguageSelection = Collections.newSetFromMap(new ConcurrentHashMap<>());
     private final Map<String, String> languageHints = new ConcurrentHashMap<>();
+    private final Map<String, String> selectedLanguage = new ConcurrentHashMap<>();
 
     @PostConstruct
     public void loadSessionsFromDisk() {
@@ -92,7 +94,9 @@ public class ConversationSessionStore {
         intakeCompletedSessions.remove(sessionId);
         pendingNewSessionConfirmation.remove(sessionId);
         needsIntroductionSessions.remove(sessionId);
+        pendingLanguageSelection.remove(sessionId);
         languageHints.remove(sessionId);
+        selectedLanguage.remove(sessionId);
     }
 
     public void markPendingNewSession(String sessionId) {
@@ -125,6 +129,26 @@ public class ConversationSessionStore {
 
     public String getLanguageHint(String sessionId) {
         return languageHints.getOrDefault(sessionId, "");
+    }
+
+    public void markPendingLanguageSelection(String sessionId) {
+        pendingLanguageSelection.add(sessionId);
+    }
+
+    public boolean isPendingLanguageSelection(String sessionId) {
+        return pendingLanguageSelection.contains(sessionId);
+    }
+
+    public void clearPendingLanguageSelection(String sessionId) {
+        pendingLanguageSelection.remove(sessionId);
+    }
+
+    public void setSelectedLanguage(String sessionId, String language) {
+        selectedLanguage.put(sessionId, language);
+    }
+
+    public String getSelectedLanguage(String sessionId) {
+        return selectedLanguage.getOrDefault(sessionId, "");
     }
 
     public boolean isIntakeCompleted(String sessionId) {

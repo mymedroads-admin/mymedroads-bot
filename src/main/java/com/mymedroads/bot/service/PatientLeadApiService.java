@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
 import java.util.LinkedHashMap;
+import java.util.Objects;
 import java.util.Map;
 import java.util.Optional;
 
@@ -24,7 +25,7 @@ public class PatientLeadApiService {
         this.restClient = builder.build();
     }
 
-    @SuppressWarnings({"null", "unchecked"})
+    @SuppressWarnings("unchecked")
     public Optional<String> submitLead(PatientProfile profile, String sessionId) {
         if (apiUrl == null || apiUrl.isBlank()) {
             log.warn("mymedroads-api-suite.url is not configured — skipping lead submission for session {}", sessionId);
@@ -45,7 +46,7 @@ public class PatientLeadApiService {
 
             Map<String, Object> submitResponse = restClient.post()
                     .uri(baseUrl + "/submitlead?channel=chatbot")
-                    .contentType(MediaType.APPLICATION_JSON)
+                    .contentType(Objects.requireNonNull(MediaType.APPLICATION_JSON))
                     .body(payload)
                     .retrieve()
                     .body(Map.class);
@@ -63,7 +64,7 @@ public class PatientLeadApiService {
         return Optional.empty();
     }
 
-    @SuppressWarnings({"null", "unchecked"})
+    @SuppressWarnings("unchecked")
     public Map<String, Object> fetchCaseStatus(String urn) {
         if (apiUrl == null || apiUrl.isBlank()) {
             log.warn("mymedroads-api-suite.url is not configured — skipping case status fetch for URN {}", urn);

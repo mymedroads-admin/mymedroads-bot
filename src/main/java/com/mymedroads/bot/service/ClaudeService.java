@@ -25,6 +25,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -75,6 +76,20 @@ public class ClaudeService {
     private static final Pattern CASE_STATUS_MARKER =
             Pattern.compile("\\[CASE_STATUS_REQUEST:([^\\]]+)\\]");
 
+    // Matches the marker Claude emits after the user selects a language:
+    // [LANGUAGE_SELECTED:<language_name>]
+    private static final Pattern LANGUAGE_SELECTED_MARKER =
+            Pattern.compile("\\[LANGUAGE_SELECTED:([^\\]]+)\\]");
+
+    private static final String SUPPORTED_LANGUAGES_LIST =
+            "1. English\n2. Hindi\n3. Bengali\n4. Swahili\n5. Arabic\n" +
+            "6. French\n7. Spanish\n8. Chinese Mandarin\n9. German\n10. Russian\n11. Amharic";
+
+    private static final String LANGUAGE_SELECTION_PROMPT =
+            "I support the following languages. Please reply with the number or name of your preferred language " +
+            "and I will continue our conversation in that language. The default is English.\n\n" +
+            SUPPORTED_LANGUAGES_LIST;
+
     private final AnthropicClient anthropicClient;
     private final ConversationSessionStore sessionStore;
     private final RagService ragService;
@@ -108,8 +123,15 @@ public class ClaudeService {
                 String languageHint = sessionStore.getLanguageHint(sessionId);
                 sessionStore.clearSession(sessionId);
                 sessionId = sessionStore.createSession();
+                sessionStore.markPendingLanguageSelection(sessionId);
                 log.debug("User confirmed new session: {}", sessionId);
-                return buildDirectResponse(sessionId, generateIntroduction(languageHint.isEmpty() ? request.getMessage() : languageHint));
+                String intro = generateIntroduction(languageHint.isEmpty() ? request.getMessage() : languageHint);
+                return ChatResponse.builder()
+                        .sessionId(sessionId)
+                        .message(intro)
+                        .followUpMessage(LANGUAGE_SELECTION_PROMPT)
+                        .intakeComplete(false)
+                        .build();
             } else {
                 log.debug("User declined new session, continuing: {}", sessionId);
                 return buildDirectResponse(sessionId, "No problem! Let's continue from where we left off. How can I help you?");
@@ -150,13 +172,35 @@ public class ClaudeService {
                 ? systemPrompt
                 : systemPrompt + "\n\n" + ragContext;
 
-        // On the first turn of a new session, prepend an introduction instruction
+        // If the user has already chosen a language, lock replies to that language
+        String chosenLanguage = sessionStore.getSelectedLanguage(sessionId);
+        if (!chosenLanguage.isEmpty()) {
+            effectiveSystemPrompt = "IMPORTANT: The user has selected " + chosenLanguage +
+                    " as their preferred language for this session. Respond exclusively in " +
+                    chosenLanguage + " for every part of your reply.\n\n" + effectiveSystemPrompt;
+        }
+
+        boolean wasIntroTurn = false;
         if (sessionStore.needsIntroduction(sessionId)) {
-            effectiveSystemPrompt = "IMPORTANT: Begin your response by warmly and excitedly introducing yourself " +
-                    "as Mira, a caring medical travel assistant from myMedRoads, " +
-                    "in the EXACT SAME LANGUAGE as the user's message. " +
-                    "Then proceed to address the user's message.\n\n" + effectiveSystemPrompt;
+            // First turn: introduce Mira only — language selection follows as a separate message
+            effectiveSystemPrompt = "IMPORTANT: Begin your response by warmly introducing yourself " +
+                    "as Mira, a caring medical travel assistant from myMedRoads (https://uat.mymedroads.com). " +
+                    "Mention that you are an AI assistant and may occasionally make mistakes. " +
+                    "Do NOT mention languages, present a language list, or ask about language preferences in this message. " +
+                    "Do NOT start the patient intake yet. Respond in English only.\n\n" + effectiveSystemPrompt;
             sessionStore.clearNeedsIntroduction(sessionId);
+            wasIntroTurn = true;
+        } else if (sessionStore.isPendingLanguageSelection(sessionId)) {
+            // Second turn: user is responding with their language choice
+            effectiveSystemPrompt = "IMPORTANT: The user is choosing their preferred language from the list you presented. " +
+                    "Identify which language they selected (by number or name). " +
+                    "Warmly confirm their choice and respond entirely in that language. " +
+                    "Do NOT start the patient intake yet. " +
+                    "At the very end of your response, append this marker on its own line " +
+                    "(no spaces around the colon, no line breaks inside it):\n" +
+                    "[LANGUAGE_SELECTED:<language_name>]\n" +
+                    "where <language_name> is exactly one of: English, Hindi, Bengali, Swahili, Arabic, " +
+                    "French, Spanish, Chinese Mandarin, German, Russian, Amharic.\n\n" + effectiveSystemPrompt;
         }
 
         MessageCreateParams.Builder paramsBuilder = MessageCreateParams.builder()
@@ -226,13 +270,13 @@ public class ClaudeService {
                     RestClient restClient = RestClient.builder().build();
                     ResponseEntity<Void> submitResponse = restClient.post()
                         .uri(baseUrl + "/sendemail/new_registration_confirmation_email")
-                        .contentType(MediaType.APPLICATION_JSON)
+                        .contentType(Objects.requireNonNull(MediaType.APPLICATION_JSON))
                         .body(payload)
                         .retrieve()
                         .toBodilessEntity();
                     log.info("Confirmation email sent for session: {} with response: {}", sessionId, submitResponse.getStatusCode());
 
-                    if (submitResponse.getStatusCode().value() != 202) {
+                    if (!submitResponse.getStatusCode().is2xxSuccessful()) {
                         visibleText = visibleText + "\n\n"
                                 + generateEmailFailureMessage(assistantText, profile.getEmail());
                     }
@@ -244,6 +288,16 @@ public class ClaudeService {
             } else {
                 log.debug("Ignoring duplicate INTAKE_COMPLETE marker for session: {}", sessionId);
             }
+        }
+
+        // Detect the language-selection marker emitted by Claude after user picks a language
+        Matcher langMatcher = LANGUAGE_SELECTED_MARKER.matcher(visibleText);
+        if (langMatcher.find()) {
+            String language = langMatcher.group(1).strip();
+            visibleText = visibleText.replace(langMatcher.group(0), "").strip();
+            sessionStore.setSelectedLanguage(sessionId, language);
+            sessionStore.clearPendingLanguageSelection(sessionId);
+            log.debug("Language selected: {} for session: {}", language, sessionId);
         }
 
         // Detect the case-status marker emitted by Claude when user asks about their case
@@ -262,11 +316,21 @@ public class ClaudeService {
                 .build();
         sessionStore.addMessage(sessionId, assistantMessage);
 
+        // After the intro turn, store the language selection prompt as a second assistant message
+        if (wasIntroTurn) {
+            sessionStore.addMessage(sessionId, ChatMessage.builder()
+                    .role("assistant")
+                    .content(LANGUAGE_SELECTION_PROMPT)
+                    .build());
+            sessionStore.markPendingLanguageSelection(sessionId);
+        }
+
         log.debug("Received response ({} chars) for session: {}", visibleText.length(), sessionId);
 
         return ChatResponse.builder()
                 .sessionId(sessionId)
                 .message(visibleText)
+                .followUpMessage(wasIntroTurn ? LANGUAGE_SELECTION_PROMPT : null)
                 .intakeComplete(intakeComplete)
                 .model(response.model().toString())
                 .inputTokens(response.usage().inputTokens())
@@ -304,15 +368,16 @@ public class ClaudeService {
     }
 
     private String generateIntroduction(String languageHint) {
-        String prompt = "You are Mira, a warm and caring medical travel assistant from myMedRoads. " +
-                "Generate a warm, excited self-introduction in the EXACT SAME LANGUAGE as this text: \"" + languageHint + "\". " +
-                "Introduce yourself as Mira, express genuine happiness to meet the user, " +
-                "and let them know you are here to help with their medical travel needs. " +
-                "Keep it to 2-3 sentences. Do not switch languages.";
+        String prompt = "You are Mira, a warm and caring medical travel assistant from myMedRoads (https://uat.mymedroads.com). " +
+                "Generate a warm self-introduction in English. " +
+                "Introduce yourself as Mira, mention you are an AI assistant and may occasionally make mistakes, " +
+                "and express happiness to meet the user. " +
+                "Do NOT mention languages, present a language list, or ask about language preferences. " +
+                "Keep it concise. Respond in English only.";
         Message response = anthropicClient.messages().create(
                 MessageCreateParams.builder()
                         .model(model)
-                        .maxTokens(256)
+                        .maxTokens(384)
                         .addUserMessage(prompt)
                         .build());
         return response.content().stream()
