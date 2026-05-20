@@ -253,11 +253,12 @@ public class ClaudeService {
                     payload.put("urn", refNumber.get());
                     ZonedDateTime utcNow = ZonedDateTime.now(ZoneOffset.UTC);
                     int day = utcNow.getDayOfMonth();
+                    String monthString= utcNow.getMonth().getDisplayName(TextStyle.FULL, Locale.ENGLISH);
                     String ordinal = (day % 10 == 1 && day != 11) ? "st"
                                    : (day % 10 == 2 && day != 12) ? "nd"
                                    : (day % 10 == 3 && day != 13) ? "rd" : "th";
                     String registrationDate = utcNow.getDayOfWeek().getDisplayName(TextStyle.FULL, Locale.ENGLISH)
-                                           + ", " + day + ordinal + " " + utcNow.getYear();
+                                           + ", " + monthString + " " + day + ordinal + " " + utcNow.getYear();
                     payload.put("registration_date", registrationDate);
 
                     payload.put("channel", "Mira");
