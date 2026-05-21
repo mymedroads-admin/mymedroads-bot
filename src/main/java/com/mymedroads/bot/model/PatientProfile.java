@@ -18,4 +18,6 @@ public class PatientProfile {
     private String email;
     private String destination;
     private String medicalIssue;
+    private String accommodationPreference;
+    private String budgetRange;
 }

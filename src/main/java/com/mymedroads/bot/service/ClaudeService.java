@@ -5,6 +5,7 @@ import com.anthropic.models.messages.Message;
 import com.anthropic.models.messages.MessageCreateParams;
 import com.anthropic.models.messages.TextBlockParam;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mymedroads.bot.model.ChatMessage;
 import com.mymedroads.bot.model.ChatRequest;
@@ -39,6 +40,11 @@ public class ClaudeService {
     // [INTAKE_COMPLETE:{"name":"...","age":"...","gender":"...","mobile":"...","email":"...","destination":"...","medicalIssue":"..."}]
     private static final Pattern INTAKE_MARKER =
             Pattern.compile("\\[INTAKE_COMPLETE:(\\{.*?\\})\\]", Pattern.DOTALL);
+
+    // Matches the marker Claude emits when the user updates any intake field post-completion:
+    // [INTAKE_UPDATE:{"urn":"...","name":"...","age":"...","gender":"...","mobile":"...","email":"...","destination":"...","medicalIssue":"..."}]
+    private static final Pattern INTAKE_UPDATE_MARKER =
+            Pattern.compile("\\[INTAKE_UPDATE:(\\{.*?\\})\\]", Pattern.DOTALL);
 
     // Matches "<any greeting> Mira" at the start of a message, across languages
     private static final Pattern GREETING_PATTERN = Pattern.compile(
@@ -301,6 +307,30 @@ public class ClaudeService {
             log.debug("Language selected: {} for session: {}", language, sessionId);
         }
 
+        // Detect the intake-update marker emitted by Claude when the user changes a field post-intake
+        Matcher updateMatcher = INTAKE_UPDATE_MARKER.matcher(visibleText);
+        if (updateMatcher.find()) {
+            visibleText = visibleText.replace(updateMatcher.group(0), "").strip();
+            try {
+                Map<String, String> updateData = objectMapper.readValue(updateMatcher.group(1), new TypeReference<Map<String, String>>() {});
+                String updateUrn = updateData.get("urn");
+                PatientProfile updatedProfile = PatientProfile.builder()
+                        .name(updateData.get("name"))
+                        .age(updateData.get("age"))
+                        .gender(updateData.get("gender"))
+                        .mobile(updateData.get("mobile"))
+                        .email(updateData.get("email"))
+                        .destination(updateData.get("destination"))
+                        .medicalIssue(updateData.get("medicalIssue"))
+                        .accommodationPreference(updateData.get("accommodationPreference"))
+                        .budgetRange(updateData.get("budgetRange"))
+                        .build();
+                patientLeadApiService.updateLead(updatedProfile, updateUrn, sessionId);
+            } catch (Exception e) {
+                log.error("Failed to process INTAKE_UPDATE marker for session {}: {}", sessionId, e.getMessage(), e);
+            }
+        }
+
         // Detect the case-status marker emitted by Claude when user asks about their case
         Matcher statusMatcher = CASE_STATUS_MARKER.matcher(visibleText);
         if (statusMatcher.find()) {
@@ -435,10 +465,20 @@ public class ClaudeService {
     private Optional<String> submitPatientLead(String profileJson, String sessionId) {
         try {
             PatientProfile profile = objectMapper.readValue(profileJson, PatientProfile.class);
-            return patientLeadApiService.submitLead(profile, sessionId);
+            Optional<String> urn = patientLeadApiService.submitLead(profile, sessionId);
+            urn.ifPresent(u -> handleIntakeCompletion(profile, u, sessionId));
+            return urn;
         } catch (Exception e) {
             log.error("Failed to parse patient profile JSON for session {}: {}", sessionId, e.getMessage(), e);
             return Optional.empty();
         }
+    }
+
+    /**
+     * Called once per session after intake is confirmed and a URN has been assigned.
+     * Orchestrates all post-intake persistence: API update and database write.
+     */
+    private void handleIntakeCompletion(PatientProfile profile, String urn, String sessionId) {
+        patientLeadApiService.updateLead(profile, urn, sessionId);
     }
 }

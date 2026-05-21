@@ -64,6 +64,48 @@ public class PatientLeadApiService {
         return Optional.empty();
     }
 
+    /**
+     * Updates an existing patient lead identified by {@code urn} with the latest
+     * profile data collected during intake.  Call this after intake is confirmed
+     * and the URN is known.
+     */
+    @SuppressWarnings("unchecked")
+    public boolean updateLead(PatientProfile profile, String urn, String sessionId) {
+        if (apiUrl == null || apiUrl.isBlank()) {
+            log.warn("mymedroads-api-suite.url is not configured — skipping lead update for URN {}", urn);
+            return false;
+        }
+
+        String baseUrl = apiUrl.endsWith("/") ? apiUrl.substring(0, apiUrl.length() - 1) : apiUrl;
+        try {
+            Map<String, String> payload = new LinkedHashMap<>();
+            payload.put("urn", urn);
+            payload.put("sessionId", sessionId);
+            payload.put("name", profile.getName());
+            payload.put("age", profile.getAge());
+            payload.put("gender", profile.getGender());
+            payload.put("mobile", profile.getMobile());
+            payload.put("email", profile.getEmail());
+            payload.put("destination", profile.getDestination());
+            payload.put("medicalIssue", profile.getMedicalIssue());
+            payload.put("accommodationPreference", profile.getAccommodationPreference());
+            payload.put("budgetRange", profile.getBudgetRange());
+
+            Map<String, Object> response = restClient.put()
+                    .uri(baseUrl + "/updatelead")
+                    .contentType(Objects.requireNonNull(MediaType.APPLICATION_JSON))
+                    .body(payload)
+                    .retrieve()
+                    .body(Map.class);
+
+            log.info("Patient lead updated for URN: {} session: {}", urn, sessionId);
+            return response != null;
+        } catch (Exception e) {
+            log.error("Failed to update patient lead for URN {} session {}: {}", urn, sessionId, e.getMessage(), e);
+            return false;
+        }
+    }
+
     @SuppressWarnings("unchecked")
     public Map<String, Object> fetchCaseStatus(String urn) {
         if (apiUrl == null || apiUrl.isBlank()) {
