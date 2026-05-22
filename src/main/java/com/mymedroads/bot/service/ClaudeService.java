@@ -324,6 +324,8 @@ public class ClaudeService {
                         .medicalIssue(updateData.get("medicalIssue"))
                         .accommodationPreference(updateData.get("accommodationPreference"))
                         .budgetRange(updateData.get("budgetRange"))
+                        .preferredHospital(updateData.get("preferredHospital"))
+                        .preferredDoctor(updateData.get("preferredDoctor"))
                         .build();
                 patientLeadApiService.updateLead(updatedProfile, updateUrn, sessionId);
             } catch (Exception e) {

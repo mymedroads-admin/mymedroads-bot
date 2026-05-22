@@ -20,4 +20,6 @@ public class PatientProfile {
     private String medicalIssue;
     private String accommodationPreference;
     private String budgetRange;
+    private String preferredHospital;
+    private String preferredDoctor;
 }

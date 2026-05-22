@@ -90,6 +90,8 @@ public class PatientLeadApiService {
             payload.put("medicalIssue", profile.getMedicalIssue());
             payload.put("accommodationPreference", profile.getAccommodationPreference());
             payload.put("budgetRange", profile.getBudgetRange());
+            payload.put("preferredHospital", profile.getPreferredHospital());
+            payload.put("preferredDoctor", profile.getPreferredDoctor());
 
             Map<String, Object> response = restClient.put()
                     .uri(baseUrl + "/updatelead")
