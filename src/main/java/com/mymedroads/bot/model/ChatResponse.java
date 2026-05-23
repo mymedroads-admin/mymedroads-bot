@@ -13,6 +13,7 @@ import lombok.NoArgsConstructor;
 public class ChatResponse {
 
     private String sessionId;
+    private String clientId;
     private String message;
     private String followUpMessage;
     @JsonIgnore

@@ -28,6 +28,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -119,8 +120,24 @@ public class ClaudeService {
                     "haan|ji\\s+haan|bilkul|ha|نعم|أجل|بله|oui|ja|sí|si|sim|da|はい|네|да)\\s*[.!]*\\s*$");
 
     public ChatResponse chat(ChatRequest request) {
+        // Resolve or generate a persistent client identifier
+        String clientId = (request.getClientId() != null && !request.getClientId().isBlank())
+                ? request.getClientId()
+                : UUID.randomUUID().toString();
+
         String sessionId = request.getSessionId();
         boolean sessionExisted = sessionId != null && sessionStore.sessionExists(sessionId);
+
+        // For existing sessions, link the clientId and restore language if lost after a restart
+        if (sessionExisted) {
+            sessionStore.linkSessionToClient(sessionId, clientId);
+            if (sessionStore.getSelectedLanguage(sessionId).isEmpty()) {
+                String savedLang = sessionStore.getClientLanguagePreference(clientId);
+                if (!savedLang.isEmpty()) {
+                    sessionStore.setSelectedLanguage(sessionId, savedLang);
+                }
+            }
+        }
 
         // If we asked the user whether to start a new session, handle their reply
         if (sessionExisted && sessionStore.isPendingNewSession(sessionId)) {
@@ -129,18 +146,26 @@ public class ClaudeService {
                 String languageHint = sessionStore.getLanguageHint(sessionId);
                 sessionStore.clearSession(sessionId);
                 sessionId = sessionStore.createSession();
-                sessionStore.markPendingLanguageSelection(sessionId);
+                sessionStore.linkSessionToClient(sessionId, clientId);
+                String savedLanguage = sessionStore.getClientLanguagePreference(clientId);
+                boolean langKnown = !savedLanguage.isEmpty();
+                if (langKnown) {
+                    sessionStore.setSelectedLanguage(sessionId, savedLanguage);
+                } else {
+                    sessionStore.markPendingLanguageSelection(sessionId);
+                }
                 log.debug("User confirmed new session: {}", sessionId);
                 String intro = generateIntroduction(languageHint.isEmpty() ? request.getMessage() : languageHint);
+                String introMessage = langKnown ? intro : intro + "\n\n" + LANGUAGE_SELECTION_PROMPT;
                 return ChatResponse.builder()
+                        .clientId(clientId)
                         .sessionId(sessionId)
-                        .message(intro)
-                        .followUpMessage(LANGUAGE_SELECTION_PROMPT)
+                        .message(introMessage)
                         .intakeComplete(false)
                         .build();
             } else {
                 log.debug("User declined new session, continuing: {}", sessionId);
-                return buildDirectResponse(sessionId, "No problem! Let's continue from where we left off. How can I help you?");
+                return buildDirectResponse(clientId, sessionId, "No problem! Let's continue from where we left off. How can I help you?");
             }
         }
 
@@ -150,14 +175,24 @@ public class ClaudeService {
                 sessionStore.setLanguageHint(sessionId, request.getMessage());
                 sessionStore.markPendingNewSession(sessionId);
                 log.debug("Greeting detected with existing session, asking for confirmation: {}", sessionId);
-                return buildDirectResponse(sessionId, generateWelcomeBackMessage(request.getMessage()));
+                return buildDirectResponse(clientId, sessionId, generateWelcomeBackMessage(request.getMessage()));
             }
             sessionId = sessionStore.createSession();
             sessionStore.markNeedsIntroduction(sessionId);
+            sessionStore.linkSessionToClient(sessionId, clientId);
+            String savedLang = sessionStore.getClientLanguagePreference(clientId);
+            if (!savedLang.isEmpty()) {
+                sessionStore.setSelectedLanguage(sessionId, savedLang);
+            }
             log.debug("Created new session on greeting: {}", sessionId);
         } else if (!sessionExisted) {
             sessionId = sessionStore.createSession();
             sessionStore.markNeedsIntroduction(sessionId);
+            sessionStore.linkSessionToClient(sessionId, clientId);
+            String savedLang = sessionStore.getClientLanguagePreference(clientId);
+            if (!savedLang.isEmpty()) {
+                sessionStore.setSelectedLanguage(sessionId, savedLang);
+            }
             log.debug("Created new session: {}", sessionId);
         }
 
@@ -186,14 +221,17 @@ public class ClaudeService {
                     chosenLanguage + " for every part of your reply.\n\n" + effectiveSystemPrompt;
         }
 
+        boolean languageAlreadyKnown = !sessionStore.getSelectedLanguage(sessionId).isEmpty();
+
         boolean wasIntroTurn = false;
         if (sessionStore.needsIntroduction(sessionId)) {
-            // First turn: introduce Mira only — language selection follows as a separate message
+            // First turn: introduce Mira. Skip language prompt if preference is already known.
+            String introLanguage = languageAlreadyKnown ? sessionStore.getSelectedLanguage(sessionId) : "English";
             effectiveSystemPrompt = "IMPORTANT: Begin your response by warmly introducing yourself " +
                     "as Mira, a caring medical travel assistant from myMedRoads (https://uat.mymedroads.com). " +
                     "Mention that you are an AI assistant and may occasionally make mistakes. " +
                     "Do NOT mention languages, present a language list, or ask about language preferences in this message. " +
-                    "Do NOT start the patient intake yet. Respond in English only.\n\n" + effectiveSystemPrompt;
+                    "Do NOT start the patient intake yet. Respond in " + introLanguage + " only.\n\n" + effectiveSystemPrompt;
             sessionStore.clearNeedsIntroduction(sessionId);
             wasIntroTurn = true;
         } else if (sessionStore.isPendingLanguageSelection(sessionId)) {
@@ -304,7 +342,8 @@ public class ClaudeService {
             visibleText = visibleText.replace(langMatcher.group(0), "").strip();
             sessionStore.setSelectedLanguage(sessionId, language);
             sessionStore.clearPendingLanguageSelection(sessionId);
-            log.debug("Language selected: {} for session: {}", language, sessionId);
+            sessionStore.setClientLanguagePreference(clientId, language);
+            log.debug("Language selected: {} for session: {} (client: {})", language, sessionId, clientId);
         }
 
         // Detect the intake-update marker emitted by Claude when the user changes a field post-intake
@@ -342,28 +381,24 @@ public class ClaudeService {
             visibleText = visibleText + "\n\n" + formatCaseStatus(urn, statusResponse);
         }
 
-        // Store assistant reply in history (without the marker)
-        ChatMessage assistantMessage = ChatMessage.builder()
-                .role("assistant")
-                .content(visibleText)
-                .build();
-        sessionStore.addMessage(sessionId, assistantMessage);
-
-        // After the intro turn, store the language selection prompt as a second assistant message
-        if (wasIntroTurn) {
-            sessionStore.addMessage(sessionId, ChatMessage.builder()
-                    .role("assistant")
-                    .content(LANGUAGE_SELECTION_PROMPT)
-                    .build());
+        // Append language selection to the intro message so it is always in the main message field
+        if (wasIntroTurn && !languageAlreadyKnown) {
+            visibleText = visibleText + "\n\n" + LANGUAGE_SELECTION_PROMPT;
             sessionStore.markPendingLanguageSelection(sessionId);
         }
+
+        // Store assistant reply in history
+        sessionStore.addMessage(sessionId, ChatMessage.builder()
+                .role("assistant")
+                .content(visibleText)
+                .build());
 
         log.debug("Received response ({} chars) for session: {}", visibleText.length(), sessionId);
 
         return ChatResponse.builder()
+                .clientId(clientId)
                 .sessionId(sessionId)
                 .message(visibleText)
-                .followUpMessage(wasIntroTurn ? LANGUAGE_SELECTION_PROMPT : null)
                 .intakeComplete(intakeComplete)
                 .model(response.model().toString())
                 .inputTokens(response.usage().inputTokens())
@@ -456,8 +491,9 @@ public class ClaudeService {
                 .reduce("", (a, b) -> a + b);
     }
 
-    private ChatResponse buildDirectResponse(String sessionId, String message) {
+    private ChatResponse buildDirectResponse(String clientId, String sessionId, String message) {
         return ChatResponse.builder()
+                .clientId(clientId)
                 .sessionId(sessionId)
                 .message(message)
                 .intakeComplete(false)

@@ -32,6 +32,9 @@ public class ConversationSessionStore {
     @Value("${session.file}")
     private String sessionsFile;
 
+    @Value("${language.preferences.file}")
+    private String languagePreferencesFile;
+
     private final ObjectMapper objectMapper;
 
     private final Map<String, List<ChatMessage>> sessions = new ConcurrentHashMap<>();
@@ -42,20 +45,39 @@ public class ConversationSessionStore {
     private final Map<String, String> languageHints = new ConcurrentHashMap<>();
     private final Map<String, String> selectedLanguage = new ConcurrentHashMap<>();
 
+    // Persisted cross-session: clientId → chosen language
+    private final Map<String, String> clientLanguagePreferences = new ConcurrentHashMap<>();
+    // In-memory only: sessionId → clientId (rebuilt each server run)
+    private final Map<String, String> sessionToClient = new ConcurrentHashMap<>();
+
     @PostConstruct
     public void loadSessionsFromDisk() {
         File file = new File(sessionsFile);
         if (!file.exists()) {
             log.info("No session file found at {}; starting with empty session store", sessionsFile);
-            return;
+        } else {
+            try {
+                Map<String, List<ChatMessage>> loaded = objectMapper.readValue(
+                        file, new TypeReference<Map<String, List<ChatMessage>>>() {});
+                sessions.putAll(loaded);
+                log.info("Loaded {} session(s) from {}", loaded.size(), sessionsFile);
+            } catch (Exception e) {
+                log.error("Failed to load sessions from {}: {}", sessionsFile, e.getMessage(), e);
+            }
         }
-        try {
-            Map<String, List<ChatMessage>> loaded = objectMapper.readValue(
-                    file, new TypeReference<Map<String, List<ChatMessage>>>() {});
-            sessions.putAll(loaded);
-            log.info("Loaded {} session(s) from {}", loaded.size(), sessionsFile);
-        } catch (Exception e) {
-            log.error("Failed to load sessions from {}: {}", sessionsFile, e.getMessage(), e);
+
+        File langFile = new File(languagePreferencesFile);
+        if (!langFile.exists()) {
+            log.info("No language preferences file found at {}; starting fresh", languagePreferencesFile);
+        } else {
+            try {
+                Map<String, String> loaded = objectMapper.readValue(
+                        langFile, new TypeReference<Map<String, String>>() {});
+                clientLanguagePreferences.putAll(loaded);
+                log.info("Loaded language preferences for {} client(s) from {}", loaded.size(), languagePreferencesFile);
+            } catch (Exception e) {
+                log.error("Failed to load language preferences from {}: {}", languagePreferencesFile, e.getMessage(), e);
+            }
         }
     }
 
@@ -68,6 +90,18 @@ public class ConversationSessionStore {
             log.debug("Saved {} session(s) to {}", sessions.size(), sessionsFile);
         } catch (Exception e) {
             log.error("Failed to save sessions to {}: {}", sessionsFile, e.getMessage(), e);
+        }
+        saveLanguagePreferencesToDisk();
+    }
+
+    private void saveLanguagePreferencesToDisk() {
+        File file = new File(languagePreferencesFile);
+        try {
+            file.getParentFile().mkdirs();
+            objectMapper.writerWithDefaultPrettyPrinter().writeValue(file, clientLanguagePreferences);
+            log.debug("Saved language preferences for {} client(s) to {}", clientLanguagePreferences.size(), languagePreferencesFile);
+        } catch (Exception e) {
+            log.error("Failed to save language preferences to {}: {}", languagePreferencesFile, e.getMessage(), e);
         }
     }
 
@@ -97,6 +131,30 @@ public class ConversationSessionStore {
         pendingLanguageSelection.remove(sessionId);
         languageHints.remove(sessionId);
         selectedLanguage.remove(sessionId);
+        sessionToClient.remove(sessionId);
+        // clientLanguagePreferences intentionally kept — persists across sessions
+    }
+
+    public void linkSessionToClient(String sessionId, String clientId) {
+        if (clientId != null && !clientId.isBlank()) {
+            sessionToClient.put(sessionId, clientId);
+        }
+    }
+
+    public String getClientForSession(String sessionId) {
+        return sessionToClient.getOrDefault(sessionId, "");
+    }
+
+    public void setClientLanguagePreference(String clientId, String language) {
+        if (clientId != null && !clientId.isBlank() && language != null && !language.isBlank()) {
+            clientLanguagePreferences.put(clientId, language);
+            saveLanguagePreferencesToDisk();
+        }
+    }
+
+    public String getClientLanguagePreference(String clientId) {
+        if (clientId == null || clientId.isBlank()) return "";
+        return clientLanguagePreferences.getOrDefault(clientId, "");
     }
 
     public void markPendingNewSession(String sessionId) {
