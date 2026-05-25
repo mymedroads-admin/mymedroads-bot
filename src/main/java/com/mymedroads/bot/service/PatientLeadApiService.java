@@ -108,27 +108,51 @@ public class PatientLeadApiService {
         }
     }
 
+    // @SuppressWarnings("unchecked")
+    // public Map<String, Object> fetchCaseStatus(String urn) {
+    //     if (apiUrl == null || apiUrl.isBlank()) {
+    //         log.warn("mymedroads-api-suite.url is not configured — skipping case status fetch for URN {}", urn);
+    //         return Map.of("error", "Service not configured");
+    //     }
+
+    //     String baseUrl = apiUrl.endsWith("/") ? apiUrl.substring(0, apiUrl.length() - 1) : apiUrl;
+    //     try {
+    //         Map<String, Object> response = restClient.get()
+    //                 .uri(baseUrl + "/getcase?urn=" + urn)
+    //                 .retrieve()
+    //                 .body(Map.class);
+
+    //         if (response != null) {
+    //             log.info("Case status fetched for URN: {}", urn);
+    //             return response;
+    //         }
+    //     } catch (Exception e) {
+    //         log.error("Failed to fetch case status for URN {}: {}", urn, e.getMessage(), e);
+    //     }
+    //     return Map.of("error", "Unable to fetch case status");
+    // }
+
     @SuppressWarnings("unchecked")
-    public Map<String, Object> fetchCaseStatus(String urn) {
+    public Map<String, Object> fetchCaseSummary(String urn, String mobile4) {
         if (apiUrl == null || apiUrl.isBlank()) {
-            log.warn("mymedroads-api-suite.url is not configured — skipping case status fetch for URN {}", urn);
+            log.warn("mymedroads-api-suite.url is not configured — skipping case summary fetch for URN {}", urn);
             return Map.of("error", "Service not configured");
         }
 
         String baseUrl = apiUrl.endsWith("/") ? apiUrl.substring(0, apiUrl.length() - 1) : apiUrl;
         try {
             Map<String, Object> response = restClient.get()
-                    .uri(baseUrl + "/getcase?urn=" + urn)
+                    .uri(baseUrl + "/getcase?urn=" + urn + "&mobile4=" + mobile4)
                     .retrieve()
                     .body(Map.class);
 
             if (response != null) {
-                log.info("Case status fetched for URN: {}", urn);
+                log.info("Case summary fetched for URN: {} Response: {}", urn, response);
                 return response;
             }
         } catch (Exception e) {
-            log.error("Failed to fetch case status for URN {}: {}", urn, e.getMessage(), e);
+            log.error("Failed to fetch case summary for URN {}: {}", urn, e.getMessage(), e);
         }
-        return Map.of("error", "Unable to fetch case status");
+        return Map.of("error", "Unable to fetch case summary");
     }
 }

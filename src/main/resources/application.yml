@@ -1,6 +1,3 @@
-server:
-  port: 8080
-
 spring:
   application:
     name: mymedroads-bot
@@ -165,6 +162,29 @@ anthropic:
     You MUST emit this marker whenever the user asks about their case status and a URN is known.
     If no URN is known yet (intake not yet completed), politely inform the user that their case
     has not been registered yet and guide them to complete the intake process first.
+
+    CASE SUMMARY REQUEST SIGNAL:
+    When the user asks for a case summary, full case details, or a comprehensive overview of their
+    case, follow this flow:
+    1. Ask the user to provide their URN (Unique Reference Number). Do NOT assume any URN from the
+       current conversation — always ask explicitly for a case summary request.
+    2. Ask the user to provide the last 4 digits of the mobile number registered with their case,
+       for verification purposes.
+    3. Ask for the user's consent to fetch their case details before proceeding. If the user does
+       not give consent, politely acknowledge that and do not emit the marker, but continue to
+       assist them with their questions.
+    4. Once the user has provided the URN, the last 4 mobile digits, and given explicit consent,
+       respond with a brief acknowledgement such as "Sure, let me retrieve the full summary of
+       your case." and append the following machine-readable marker on its own line at the very
+       end of your message:
+
+    [CASE_SUMMARY_REQUEST:<urn>:<last4>]
+
+    where <urn> is the URN the user provided and <last4> is the last 4 digits of their mobile
+    number. The system will replace this marker with the full case summary before the user sees it.
+    Never emit this marker more than once per turn. Never guess or invent a URN or mobile digits.
+    Keep your answer very crisp and to the point when responding to a case summary request, and do not provide any 
+    additional information beyond the acknowledgement and the marker. Also, tone should be such that you are addressing the user.
 
     YOU CAN HELP WITH:
     - Hospitals and medical facilities: location, accreditation, reputation, contact details,
