@@ -78,11 +78,6 @@ public class ClaudeService {
         Pattern.DOTALL
     );
 
-    // Matches the marker Claude emits when user asks about their case status:
-    // [CASE_STATUS_REQUEST:<urn>]
-    // private static final Pattern CASE_STATUS_MARKER =
-    //         Pattern.compile("\\[CASE_STATUS_REQUEST:([^\\]]+)\\]");
-
     // Matches the marker Claude emits when user requests a full case summary, providing URN and last 4 mobile digits:
     // [CASE_SUMMARY_REQUEST:<urn>:<last4>]
     private static final Pattern CASE_SUMMARY_MARKER =
@@ -377,15 +372,6 @@ public class ClaudeService {
             }
         }
 
-        // Detect the case-status marker emitted by Claude when user asks about their case
-        // Matcher statusMatcher = CASE_STATUS_MARKER.matcher(visibleText);
-        // if (statusMatcher.find()) {
-        //     String urn = statusMatcher.group(1).strip();
-        //     visibleText = visibleText.replace(statusMatcher.group(0), "").strip();
-        //     Map<String, Object> statusResponse = patientLeadApiService.fetchCaseStatus(urn);
-        //     visibleText = visibleText + "\n\n" + formatCaseStatus(urn, statusResponse);
-        // }
-
         // Detect the case-summary marker emitted by Claude after user provides URN and last 4 mobile digits
         Matcher summaryMatcher = CASE_SUMMARY_MARKER.matcher(visibleText);
         if (summaryMatcher.find()) {
@@ -420,35 +406,6 @@ public class ClaudeService {
                 .outputTokens(response.usage().outputTokens())
                 .build();
     }
-
-    // private String formatCaseStatus(String urn, Map<String, Object> statusResponse) {
-    //     if (statusResponse.containsKey("error")) {
-    //         return "I'm sorry, I was unable to fetch the status of your case at this time. "
-    //                 + "Please contact myMedRoads support at contact@mymedroads.com or call/WhatsApp +91-9844837371.";
-    //     }
-    //     String dataDescription = statusResponse.entrySet().stream()
-    //             .filter(e -> e.getValue() != null && !e.getValue().toString().isBlank())
-    //             .map(e -> e.getKey() + ": " + e.getValue())
-    //             .reduce((a, b) -> a + ", " + b)
-    //             .orElse("no details available");
-
-    //     String prompt = "The user asked about their case status. Their URN is " + urn
-    //             + ". Here is the case data retrieved from the system: " + dataDescription
-    //             + ". As Mira, present this information to the user in a warm, clear, and easy-to-understand way. "
-    //             + "Do not include any marker or JSON. Keep it concise.";
-
-    //     Message formatted = anthropicClient.messages().create(
-    //             MessageCreateParams.builder()
-    //                     .model(model)
-    //                     .maxTokens(256)
-    //                     .addUserMessage(prompt)
-    //                     .build());
-
-    //     return formatted.content().stream()
-    //             .flatMap(block -> block.text().stream())
-    //             .map(tb -> tb.text())
-    //             .reduce("", (a, b) -> a + b);
-    // }
 
     private String formatCaseSummary(String urn, Map<String, Object> summaryResponse) {
         if (summaryResponse.containsKey("error")) {
